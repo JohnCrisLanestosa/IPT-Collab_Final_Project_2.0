@@ -1,0 +1,552 @@
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "../ui/dropdown-menu";
+import { Button } from "../ui/button";
+import { Calendar as CalendarIcon, Package } from "lucide-react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "../ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
+
+function timeUntil(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = d - now;
+  if (diff <= 0) return "Expired";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  if (days === 0) {
+    if (hours <= 0) return "Due today";
+    return `${hours}h left`;
+  }
+  if (days === 1) return "1 day left";
+  return `${days} days left`;
+}
+
+function getDeadlineStatus(deadline) {
+  if (!deadline) return { status: "none", color: "muted" };
+  const d = new Date(deadline);
+  const now = new Date();
+  const diff = d - now;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  
+  if (diff <= 0) return { status: "expired", color: "destructive" };
+  if (days === 0 && hours <= 24) return { status: "urgent", color: "destructive" };
+  if (days <= 1) return { status: "warning", color: "default" };
+  return { status: "upcoming", color: "secondary" };
+}
+
+// Calendar grid component
+function CalendarGrid({ deadlines, currentMonth, onDateClick, selectedDate }) {
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  // Get first day of month and number of days
+  const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startingDayOfWeek = firstDay.getDay();
+  
+  // Create a map of dates with deadlines
+  const deadlinesByDate = useMemo(() => {
+    const map = {};
+    deadlines.forEach(d => {
+      if (!d.deadline) return;
+      const date = new Date(d.deadline);
+      const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      if (!map[dateKey]) {
+        map[dateKey] = [];
+      }
+      map[dateKey].push(d);
+    });
+    return map;
+  }, [deadlines]);
+  
+  // Check if a date has deadlines
+  const getDeadlinesForDate = (year, month, day) => {
+    const dateKey = `${year}-${month}-${day}`;
+    return deadlinesByDate[dateKey] || [];
+  };
+  
+  // Get status for a date
+  const getDateStatus = (year, month, day) => {
+    const dateDeadlines = getDeadlinesForDate(year, month, day);
+    if (dateDeadlines.length === 0) return null;
+    
+    const now = new Date();
+    const date = new Date(year, month, day);
+    const diff = date - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (diff <= 0) return { status: "expired", color: "bg-red-500" };
+    if (days === 0) return { status: "urgent", color: "bg-orange-500" };
+    if (days <= 1) return { status: "warning", color: "bg-yellow-500" };
+    return { status: "upcoming", color: "bg-blue-500" };
+  };
+  
+  const today = new Date();
+  const isToday = (year, month, day) => {
+    return year === today.getFullYear() && 
+           month === today.getMonth() && 
+           day === today.getDate();
+  };
+  
+  const isSelected = (year, month, day) => {
+    if (!selectedDate) return false;
+    return year === selectedDate.getFullYear() && 
+           month === selectedDate.getMonth() && 
+           day === selectedDate.getDate();
+  };
+  
+  // Generate calendar days
+  const calendarDays = [];
+  
+  // Add empty cells for days before the first day of the month
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    calendarDays.push(null);
+  }
+  
+  // Add days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarDays.push(day);
+  }
+  
+  return (
+    <div className="w-full">
+      {/* Days of week header */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {daysOfWeek.map(day => (
+          <div key={day} className="text-center text-xs font-semibold text-muted-foreground py-1">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {calendarDays.map((day, index) => {
+          if (day === null) {
+            return <div key={`empty-${index}`} className="aspect-square" />;
+          }
+          
+          const dateDeadlines = getDeadlinesForDate(
+            currentMonth.getFullYear(), 
+            currentMonth.getMonth(), 
+            day
+          );
+          const status = getDateStatus(
+            currentMonth.getFullYear(), 
+            currentMonth.getMonth(), 
+            day
+          );
+          const todayClass = isToday(
+            currentMonth.getFullYear(), 
+            currentMonth.getMonth(), 
+            day
+          ) ? "ring-2 ring-primary" : "";
+          const selectedClass = isSelected(
+            currentMonth.getFullYear(), 
+            currentMonth.getMonth(), 
+            day
+          ) ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950" : "";
+          
+          return (
+            <button
+              key={day}
+              onClick={() => onDateClick(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
+              className={`
+                min-h-[80px] rounded-md text-sm font-medium transition-all
+                hover:ring-2 hover:ring-primary hover:ring-offset-1
+                ${todayClass}
+                ${selectedClass}
+                ${dateDeadlines.length > 0 ? "font-bold bg-red-800 dark:bg-red-900" : ""}
+                relative flex flex-col items-center justify-start p-1.5 gap-0.5
+              `}
+              style={status ? { backgroundColor: status.color } : {}}
+            >
+              <div className={`text-sm font-bold mb-0.5 ${dateDeadlines.length > 0 ? "text-white" : status ? "text-white" : "text-gray-900 dark:text-gray-100"}`}>{day}</div>
+              {dateDeadlines.length > 0 && (
+                <div className="flex flex-col gap-0.5 w-full text-[9px] leading-tight overflow-hidden">
+                  {dateDeadlines.slice(0, 2).map((deadline, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`truncate px-1 py-0.5 rounded font-semibold ${
+                        status 
+                          ? "bg-white/30 text-white shadow-sm" 
+                          : "bg-white/20 text-white dark:bg-white/25 shadow-sm"
+                      }`}
+                      title={deadline.title}
+                    >
+                      {deadline.title}
+                    </div>
+                  ))}
+                  {dateDeadlines.length > 2 && (
+                    <div className={`text-[8px] px-1 font-semibold text-white`}>
+                      +{dateDeadlines.length - 2} more
+                    </div>
+                  )}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default function DeadlinesCalendar() {
+  const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const [deadlines, setDeadlines] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const selectedDateRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    let abort = false;
+    async function fetchDeadlines() {
+      if (!user?.id) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`http://localhost:5000/api/shop/order/deadlines/${user.id}`);
+        const json = await res.json();
+        if (!abort && json?.success) {
+          setDeadlines(json.data || []);
+        }
+      } catch (e) {
+        console.error("Failed to fetch deadlines", e);
+      } finally {
+        if (!abort) setLoading(false);
+      }
+    }
+
+    fetchDeadlines();
+    return () => {
+      abort = true;
+    };
+  }, [user?.id]);
+
+  // Filter deadlines - show pending and confirmed orders with deadlines (including expired for calendar display)
+  const activeDeadlines = useMemo(() => {
+    return deadlines.filter(d => {
+      // Show all pending and confirmed orders with deadlines, even if expired (for calendar visibility)
+      return d.deadline && (d.status === "pending" || d.status === "confirmed");
+    });
+  }, [deadlines]);
+  
+  // Get only upcoming (non-expired) deadlines for badge count
+  const upcomingDeadlines = useMemo(() => {
+    return activeDeadlines.filter(d => {
+      const deadlineDate = new Date(d.deadline);
+      const now = new Date();
+      return deadlineDate > now;
+    });
+  }, [activeDeadlines]);
+
+  // Group deadlines by date
+  const groupedDeadlines = useMemo(() => {
+    const groups = {};
+    activeDeadlines.forEach(d => {
+      const dateKey = new Date(d.deadline).toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(d);
+    });
+    return groups;
+  }, [activeDeadlines]);
+
+  // Get deadlines for selected date
+  const selectedDateDeadlines = useMemo(() => {
+    if (!selectedDate) return [];
+    return activeDeadlines.filter(d => {
+      const deadlineDate = new Date(d.deadline);
+      // Compare dates by year, month, and day only (ignore time)
+      return deadlineDate.getFullYear() === selectedDate.getFullYear() &&
+             deadlineDate.getMonth() === selectedDate.getMonth() &&
+             deadlineDate.getDate() === selectedDate.getDate();
+    });
+  }, [selectedDate, activeDeadlines]);
+
+  // Navigate months
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    setSelectedDate(null);
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    setSelectedDate(null);
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+    setSelectedDate(new Date());
+  };
+
+  const handleDateClick = (date) => {
+    // Check if this date has more than 2 deadlines
+    const dateDeadlines = activeDeadlines.filter(d => {
+      const deadlineDate = new Date(d.deadline);
+      return deadlineDate.getFullYear() === date.getFullYear() &&
+             deadlineDate.getMonth() === date.getMonth() &&
+             deadlineDate.getDate() === date.getDate();
+    });
+    
+    // Always select the date to show details
+    setSelectedDate(date);
+    
+    // If there are more than 2 deadlines, scroll to the details section
+    if (dateDeadlines.length > 2) {
+      // Use setTimeout to ensure the DOM has updated with the selected date details
+      setTimeout(() => {
+        if (selectedDateRef.current && scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          const target = selectedDateRef.current;
+          const containerRect = container.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          const scrollTop = container.scrollTop + (targetRect.top - containerRect.top) - 20; // 20px offset from top
+          container.scrollTo({
+            top: scrollTop,
+            behavior: 'smooth'
+          });
+        }
+      }, 150);
+    }
+  };
+
+  return (
+    <TooltipProvider>
+      <DropdownMenu open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="relative bg-secondary hover:bg-accent border-secondary text-foreground"
+              >
+                <CalendarIcon className="w-6 h-6" />
+                {upcomingDeadlines.length > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white">
+                    {upcomingDeadlines.length > 9 ? "9+" : upcomingDeadlines.length}
+                  </Badge>
+                )}
+                <span className="sr-only">Payment Deadlines</span>
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Payment Deadlines ({upcomingDeadlines.length} upcoming)</p>
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent side="bottom" align="end" className="w-[800px] max-h-[700px] overflow-hidden flex flex-col p-0 bg-white dark:bg-gray-900">
+          {/* Google Calendar-style Header */}
+          <div className="px-4 py-3 border-b bg-white dark:bg-gray-900 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                  <CalendarIcon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">Payment Deadlines</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">BukSu EEU</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {upcomingDeadlines.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {upcomingDeadlines.length} upcoming
+                </Badge>
+              )}
+            </div>
+          </div>
+          
+          {/* Local Calendar View */}
+          <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white dark:bg-gray-900 p-4">
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-sm text-muted-foreground">Loading calendar...</div>
+              </div>
+            ) : activeDeadlines.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full p-8">
+                <CalendarIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" />
+                <p className="text-sm text-muted-foreground">No upcoming payment deadlines</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Calendar Navigation */}
+                <div className="flex items-center justify-between mb-4">
+                  <button
+                    onClick={goToPreviousMonth}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                  >
+                    ←
+                  </button>
+                  <h3 className="text-lg font-semibold">
+                    {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={goToToday}
+                      className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md"
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={goToNextMonth}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Calendar Grid */}
+                <CalendarGrid
+                  deadlines={activeDeadlines}
+                  currentMonth={currentMonth}
+                  onDateClick={handleDateClick}
+                  selectedDate={selectedDate}
+                />
+
+                {/* Selected Date Details */}
+                {selectedDate && selectedDateDeadlines.length > 0 && (
+                  <div ref={selectedDateRef} className="mt-6 pt-4 border-t">
+                    <h4 className="text-sm font-semibold mb-3">
+                      {selectedDate.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedDateDeadlines.map((d) => {
+                        const { status, color } = getDeadlineStatus(d.deadline);
+                        return (
+                          <div
+                            key={d.orderId}
+                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                            onClick={() => {
+                              navigate(`/shop/account?tab=orders`);
+                              setCalendarOpen(false);
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {d.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Order ID: {d.orderId.substring(0, 8)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Amount: ₱{d.totalAmount}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge variant={color} className="text-xs">
+                                  {timeUntil(d.deadline)}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(d.deadline).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* All Deadlines List */}
+                {!selectedDate && (
+                  <div className="mt-6 pt-4 border-t">
+                    <h4 className="text-sm font-semibold mb-3">Upcoming Deadlines</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {Object.entries(groupedDeadlines).map(([dateKey, deadlines]) => (
+                        <div key={dateKey}>
+                          <p className="text-xs font-medium text-muted-foreground mb-2">{dateKey}</p>
+                          {deadlines.map((d) => {
+                            const { status, color } = getDeadlineStatus(d.deadline);
+                            return (
+                              <div
+                                key={d.orderId}
+                                className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors mb-2"
+                                onClick={() => {
+                                  navigate(`/shop/account?tab=orders`);
+                                  setCalendarOpen(false);
+                                }}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">
+                                      {d.title}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      ₱{d.totalAmount} • {new Date(d.deadline).toLocaleTimeString('en-US', {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </p>
+                                  </div>
+                                  <Badge variant={color} className="text-xs">
+                                    {timeUntil(d.deadline)}
+                                  </Badge>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-3 border-t bg-white dark:bg-gray-900">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => {
+                navigate("/shop/account?tab=orders");
+                setCalendarOpen(false);
+              }}
+            >
+              <Package className="h-3 w-3 mr-1" />
+              View All Orders
+            </Button>
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TooltipProvider>
+  );
+}

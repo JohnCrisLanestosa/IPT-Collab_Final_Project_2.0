@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 100% 97%;
+    --foreground: 217 91% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 91% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 91% 20%;
+    --primary: 217 91% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 93% 55%;
+    --secondary-foreground: 217 91% 20%;
+    --muted: 210 40% 92%;
+    --muted-foreground: 217 40% 45%;
+    --accent: 45 93% 65%;
+    --accent-foreground: 217 91% 20%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 50% 85%;
+    --input: 214 50% 85%;
+    --ring: 217 91% 35%;
+    --radius: 0.5rem;
+    --chart-1: 217 91% 50%;
+    --chart-2: 45 93% 55%;
+    --chart-3: 200 80% 45%;
+    --chart-4: 40 85% 60%;
+    --chart-5: 230 80% 60%;
+  }
+
+  .dark {
+    --background: 217 91% 8%;
+    --foreground: 210 40% 98%;
+    --card: 217 70% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217 70% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 45 93% 55%;
+    --primary-foreground: 217 91% 8%;
+    --secondary: 217 60% 20%;
+    --secondary-foreground: 45 93% 65%;
+    --muted: 217 50% 18%;
+    --muted-foreground: 210 30% 70%;
+    --accent: 45 93% 50%;
+    --accent-foreground: 217 91% 8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 50% 25%;
+    --input: 217 50% 25%;
+    --ring: 45 93% 55%;
+    --chart-1: 217 91% 50%;
+    --chart-2: 45 93% 55%;
+    --chart-3: 200 80% 45%;
+    --chart-4: 40 85% 60%;
+    --chart-5: 230 80% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Smooth transitions for theme switching */
+  * {
+    transition-property: color, background-color, border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  
+  /* Prevent transition on transform and other properties */
+  *:not(.theme-transition) {
+    transition-property: color, background-color, border-color;
+  }
+}
+
+.recaptcha-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.5rem 0;
+  border-radius: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.recaptcha-attention {
+  animation: recaptcha-shake 0.6s ease;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.45);
+}
+
+@keyframes recaptcha-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
