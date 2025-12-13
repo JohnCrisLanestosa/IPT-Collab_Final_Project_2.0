@@ -131,7 +131,7 @@ function AdminOrderDetailsView({ orderDetails }) {
     });
   }
 
-  const canArchive = (orderDetails?.orderStatus === "pickedUp" || orderDetails?.orderStatus === "cancelled") && !orderDetails?.isArchived;
+  const canArchive = orderDetails?.orderStatus === "pickedUp" && !orderDetails?.isArchived;
   const canUnarchive = orderDetails?.isArchived;
 
   // Calculate payment deadline status
@@ -432,7 +432,7 @@ function AdminOrderDetailsView({ orderDetails }) {
             )}
             {!canArchive && !canUnarchive && (
               <p className="text-sm text-muted-foreground">
-                Only cancelled or picked-up orders can be archived.
+                Only picked-up (completed) orders can be archived.
               </p>
             )}
           </div>
