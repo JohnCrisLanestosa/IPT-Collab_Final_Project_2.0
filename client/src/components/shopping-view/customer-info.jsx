@@ -1,53 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import CommonForm from "../common/form";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { useSelector } from "react-redux";
 import { useToast } from "../ui/use-toast";
-
-const customerInfoFormControls = [
-  {
-    label: "Full Name",
-    name: "name",
-    componentType: "input",
-    type: "text",
-    placeholder: "Enter your full name",
-    required: true,
-  },
-  {
-    label: "Email",
-    name: "email",
-    componentType: "input",
-    type: "email",
-    placeholder: "Enter your email",
-    required: true,
-  },
-  {
-    label: "Phone Number",
-    name: "phone",
-    componentType: "input",
-    type: "tel",
-    placeholder: "Enter your phone number",
-    required: true,
-  },
-  {
-    label: "Gender",
-    name: "gender",
-    componentType: "select",
-    placeholder: "Select your gender",
-    options: [
-      { id: "male", label: "Male" },
-      { id: "female", label: "Female" },
-      { id: "prefer-not-to-say", label: "Prefer not to say" },
-    ],
-  },
-  {
-    label: "Date of Birth",
-    name: "dateOfBirth",
-    componentType: "input",
-    type: "date",
-    placeholder: "Select your date of birth",
-  },
-];
 
 function CustomerInfo({ customerInfo, setCustomerInfo, onFormDataChange }) {
   const [formData, setFormData] = useState({
@@ -61,6 +16,54 @@ function CustomerInfo({ customerInfo, setCustomerInfo, onFormDataChange }) {
   const { user } = useSelector((state) => state.auth);
   const { toast } = useToast();
   const isInternalUpdate = useRef(false);
+
+  // Create form controls dynamically - name and email are always disabled
+  const customerInfoFormControls = useMemo(() => [
+    {
+      label: "Full Name",
+      name: "name",
+      componentType: "input",
+      type: "text",
+      placeholder: "Enter your full name",
+      required: true,
+      disabled: true, // Name is not editable
+    },
+    {
+      label: "Email",
+      name: "email",
+      componentType: "input",
+      type: "email",
+      placeholder: "Enter your email",
+      required: true,
+      disabled: true, // Email is not editable
+    },
+    {
+      label: "Phone Number",
+      name: "phone",
+      componentType: "input",
+      type: "tel",
+      placeholder: "Enter your phone number",
+      required: true,
+    },
+    {
+      label: "Gender",
+      name: "gender",
+      componentType: "select",
+      placeholder: "Select your gender",
+      options: [
+        { id: "male", label: "Male" },
+        { id: "female", label: "Female" },
+        { id: "prefer-not-to-say", label: "Prefer not to say" },
+      ],
+    },
+    {
+      label: "Date of Birth",
+      name: "dateOfBirth",
+      componentType: "input",
+      type: "date",
+      placeholder: "Select your date of birth",
+    },
+  ], []);
 
   // Pre-fill with user info if available
   useEffect(() => {
@@ -117,7 +120,13 @@ function CustomerInfo({ customerInfo, setCustomerInfo, onFormDataChange }) {
     if (formData.name || formData.email || formData.phone) {
       const timeoutId = setTimeout(() => {
         isInternalUpdate.current = true;
-        setCustomerInfo(formData);
+        // Ensure name and email always come from user object (not editable)
+        const dataToSave = {
+          ...formData,
+          name: user?.userName || formData.name,
+          email: user?.email || formData.email,
+        };
+        setCustomerInfo(dataToSave);
         // Save data to localStorage for customer profile
         if (user?.id) {
           if (formData.phone) {
@@ -132,7 +141,7 @@ function CustomerInfo({ customerInfo, setCustomerInfo, onFormDataChange }) {
         }
         // Notify parent of form data change for real-time updates
         if (onFormDataChange) {
-          onFormDataChange(formData);
+          onFormDataChange(dataToSave);
         }
       }, 300); // Debounce for 300ms to avoid too many updates
 
