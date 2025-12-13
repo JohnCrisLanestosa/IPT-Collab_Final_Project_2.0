@@ -1,7 +1,9 @@
 const Order = require("../../models/Order");
 
+// Match criteria for sales: only include orders that have been picked up (completed sales)
+// Orders must be pickedUp (which automatically sets paymentStatus to "paid") and not archived
 const PAYMENT_MATCH = {
-  paymentStatus: "paid",
+  orderStatus: "pickedUp",
   isArchived: false,
 };
 
@@ -81,13 +83,14 @@ const buildMatchStage = (startDate, endDate) => {
     orderStatus: { $ne: "cancelled" },
   };
 
+  // Use orderUpdateDate (when order was picked up/payment completed) instead of orderDate
   if (startDate || endDate) {
-    matchStage.orderDate = {};
+    matchStage.orderUpdateDate = {};
     if (startDate) {
-      matchStage.orderDate.$gte = startDate;
+      matchStage.orderUpdateDate.$gte = startDate;
     }
     if (endDate) {
-      matchStage.orderDate.$lte = endDate;
+      matchStage.orderUpdateDate.$lte = endDate;
     }
   }
 
@@ -95,20 +98,21 @@ const buildMatchStage = (startDate, endDate) => {
 };
 
 const buildTrendPipeline = ({ startDate, endDate, groupBy }) => {
+  // Use orderUpdateDate (when order was picked up/payment completed) for grouping
   const dateField =
     groupBy === "month"
       ? {
-          year: { $year: "$orderDate" },
-          month: { $month: "$orderDate" },
+          year: { $year: "$orderUpdateDate" },
+          month: { $month: "$orderUpdateDate" },
         }
       : groupBy === "week"
       ? {
-          isoYear: { $isoWeekYear: "$orderDate" },
-          isoWeek: { $isoWeek: "$orderDate" },
+          isoYear: { $isoWeekYear: "$orderUpdateDate" },
+          isoWeek: { $isoWeek: "$orderUpdateDate" },
         }
       : {
           day: {
-            $dateToString: { format: "%Y-%m-%d", date: "$orderDate" },
+            $dateToString: { format: "%Y-%m-%d", date: "$orderUpdateDate" },
           },
         };
 
@@ -133,7 +137,7 @@ const buildTrendPipeline = ({ startDate, endDate, groupBy }) => {
         totalSales: { $sum: "$totalAmount" },
         orderCount: { $sum: 1 },
         totalItems: { $sum: "$totalItemsOrdered" },
-        firstOrderDate: { $min: "$orderDate" },
+        firstOrderDate: { $min: "$orderUpdateDate" },
       },
     },
     { $sort: { firstOrderDate: 1 } },
@@ -183,21 +187,22 @@ const toTrendBuckets = (docs = [], groupBy) =>
   });
 
 const buildItemsPipeline = ({ startDate, endDate, groupBy }) => {
+  // Use orderUpdateDate (when order was picked up/payment completed) for grouping
   const labelField =
     groupBy === "month"
       ? {
-          $dateToString: { format: "%Y-%m", date: "$orderDate" },
+          $dateToString: { format: "%Y-%m", date: "$orderUpdateDate" },
         }
       : groupBy === "week"
       ? {
           $concat: [
-            { $toString: { $isoWeekYear: "$orderDate" } },
+            { $toString: { $isoWeekYear: "$orderUpdateDate" } },
             "-W",
-            { $toString: { $isoWeek: "$orderDate" } },
+            { $toString: { $isoWeek: "$orderUpdateDate" } },
           ],
         }
       : {
-          $dateToString: { format: "%Y-%m-%d", date: "$orderDate" },
+          $dateToString: { format: "%Y-%m-%d", date: "$orderUpdateDate" },
         };
 
   return [
@@ -242,7 +247,7 @@ const buildItemsPipeline = ({ startDate, endDate, groupBy }) => {
             },
           },
         },
-        lastUpdated: { $max: "$orderDate" },
+        lastUpdated: { $max: "$orderUpdateDate" },
       },
     },
     {
