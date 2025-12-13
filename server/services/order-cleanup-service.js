@@ -1,9 +1,10 @@
 const cron = require("node-cron");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const mongoose = require("mongoose");
 
 /**
- * Scheduled job to delete orders that have passed the payment deadline
+ * Scheduled job to cancel orders that have passed the payment deadline
  * without payment proof submission.
  * 
  * Runs every hour to check for expired orders.
@@ -34,34 +35,101 @@ const cleanupExpiredOrders = async () => {
       return;
     }
 
-    console.log(`[Order Cleanup] Found ${expiredOrders.length} expired order(s) to delete`);
+    console.log(`[Order Cleanup] Found ${expiredOrders.length} expired order(s) to cancel`);
 
-    // Restore product stock for each expired order before deletion
+    // Mark expired orders as cancelled and restore stock
+    // Only restore stock if the order was confirmed (stock was reduced on confirmation)
+    // Note: paymentDeadline is only set when order is confirmed, so expired orders should always be confirmed
     for (const order of expiredOrders) {
       try {
-        if (order.cartItems && order.cartItems.length > 0) {
-          for (const cartItem of order.cartItems) {
-            try {
-              const product = await Product.findById(cartItem.productId);
-              
-              if (!product) {
-                console.error(`[Order Cleanup] Product not found: ${cartItem.productId}`);
-                continue;
-              }
+        // Double-check: only restore stock if order was confirmed (stock was reduced on confirmation)
+        const confirmedStatuses = ["confirmed", "readyForPickup", "pickedUp"];
+        const wasConfirmed = confirmedStatuses.includes(order.orderStatus);
+        
+        const restoredProducts = []; // Track products that had stock restored
+        
+        if (wasConfirmed && order.cartItems && order.cartItems.length > 0) {
+          // Use transaction if available for atomicity
+          let useTransaction = false;
+          let session = null;
+          
+          try {
+            session = await mongoose.startSession();
+            await session.startTransaction();
+            useTransaction = true;
+          } catch (transactionError) {
+            console.log("[Order Cleanup] Transactions not available, using fallback method");
+            useTransaction = false;
+          }
+          
+          try {
+            for (const cartItem of order.cartItems) {
+              try {
+                const product = useTransaction 
+                  ? await Product.findById(cartItem.productId).session(session)
+                  : await Product.findById(cartItem.productId);
+                
+                if (!product) {
+                  console.error(`[Order Cleanup] Product not found: ${cartItem.productId}`);
+                  continue;
+                }
 
-              // Restore the stock
-              product.totalStock = (product.totalStock || 0) + cartItem.quantity;
-              await product.save();
-              console.log(`[Order Cleanup] Restored ${cartItem.quantity} units of stock for product ${product.title}`);
-            } catch (error) {
-              console.error(`[Order Cleanup] Error restoring stock for product ${cartItem.productId}:`, error);
+                // Restore the stock
+                product.totalStock = (product.totalStock || 0) + cartItem.quantity;
+                if (useTransaction) {
+                  await product.save({ session });
+                } else {
+                  await product.save();
+                }
+                
+                restoredProducts.push({
+                  productId: product._id,
+                  product: product.toObject(),
+                  quantityRestored: cartItem.quantity,
+                });
+                
+                console.log(`[Order Cleanup] Restored ${cartItem.quantity} units of stock for product ${product.title}`);
+              } catch (error) {
+                console.error(`[Order Cleanup] Error restoring stock for product ${cartItem.productId}:`, error);
+              }
+            }
+            
+            if (useTransaction) {
+              await session.commitTransaction();
+            }
+          } catch (error) {
+            if (useTransaction && session) {
+              try {
+                await session.abortTransaction();
+              } catch (abortError) {
+                console.error("Error aborting transaction:", abortError);
+              }
+            }
+            console.error(`[Order Cleanup] Error restoring stock for order ${order._id}:`, error);
+          } finally {
+            if (session) {
+              try {
+                session.endSession();
+              } catch (endError) {
+                console.error("Error ending session:", endError);
+              }
             }
           }
+        } else if (!wasConfirmed) {
+          console.log(`[Order Cleanup] Skipping stock restoration for order ${order._id} - order was not confirmed (status: ${order.orderStatus})`);
         }
 
-        // Delete the expired order
-        await Order.deleteOne({ _id: order._id });
-        console.log(`[Order Cleanup] Deleted expired order ${order._id} (deadline: ${order.paymentDeadline ? order.paymentDeadline.toISOString() : 'N/A'})`);
+        // Mark order as cancelled with reason
+        order.orderStatus = "cancelled";
+        order.cancellationReason = "Cancelled due to failure to pay";
+        order.orderUpdateDate = new Date();
+        await order.save();
+        
+        console.log(`[Order Cleanup] Cancelled expired order ${order._id} (deadline: ${order.paymentDeadline ? order.paymentDeadline.toISOString() : 'N/A'})`);
+        
+        // Note: Socket.IO events for stock updates would need the io instance
+        // which is not available in this service. Stock updates will be reflected
+        // when products are fetched next time.
       } catch (error) {
         console.error(`[Order Cleanup] Error processing expired order ${order._id}:`, error);
       }

@@ -55,7 +55,14 @@ const registerUser = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRATION || "60m" }
     );
 
-    res.cookie("token", token, { httpOnly: true, secure: false }).json({
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: 'strict',
+      maxAge: (process.env.JWT_EXPIRATION || "60m").includes("m") 
+        ? parseInt(process.env.JWT_EXPIRATION) * 60 * 1000 
+        : 60 * 60 * 1000 // Default 1 hour
+    }).json({
       success: true,
       message: "Registration successful",
       user: {
@@ -140,7 +147,14 @@ const loginUser = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRATION || "60m" }
     );
 
-    res.cookie("token", token, { httpOnly: true, secure: false }).json({
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: 'strict',
+      maxAge: (process.env.JWT_EXPIRATION || "60m").includes("m") 
+        ? parseInt(process.env.JWT_EXPIRATION) * 60 * 1000 
+        : 60 * 60 * 1000 // Default 1 hour
+    }).json({
       success: true,
       message: "Logged in successfully",
       isFirstLogin: isFirstLogin, // Pass this to frontend

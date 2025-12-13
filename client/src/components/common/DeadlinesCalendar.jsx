@@ -223,13 +223,42 @@ export default function DeadlinesCalendar() {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/shop/order/deadlines/${user.id}`);
+        // Use correct endpoint without user ID (backend gets it from auth middleware)
+        // Include credentials to send authentication cookies
+        const res = await fetch(`http://localhost:5000/api/shop/order/deadlines`, {
+          credentials: 'include', // Send cookies for authentication
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!res.ok) {
+          // Handle HTTP error responses
+          if (res.status === 401) {
+            console.error("Authentication failed - user may need to log in again");
+          } else {
+            console.error(`Failed to fetch deadlines: HTTP ${res.status}`);
+          }
+          if (!abort) {
+            setDeadlines([]);
+          }
+          return;
+        }
+        
         const json = await res.json();
-        if (!abort && json?.success) {
-          setDeadlines(json.data || []);
+        if (!abort) {
+          if (json?.success) {
+            setDeadlines(json.data || []);
+          } else {
+            console.error("Failed to fetch deadlines:", json.message || "Unknown error");
+            setDeadlines([]);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch deadlines", e);
+        if (!abort) {
+          setDeadlines([]);
+        }
       } finally {
         if (!abort) setLoading(false);
       }

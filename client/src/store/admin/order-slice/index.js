@@ -9,6 +9,7 @@ const initialState = {
 export const getAllOrdersForAdmin = createAsyncThunk(
   "/order/getAllOrdersForAdmin",
   async (archived = false) => {
+    // archived can be: false, "true" (for cancelled), or "archive" (for archive)
     const response = await axios.get(
       `http://localhost:5000/api/admin/orders/get?archived=${archived}`
     );

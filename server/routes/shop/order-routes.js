@@ -15,24 +15,25 @@ const {
 
 const { syncOrderDeadlinesToCalendar } = require("../../controllers/auth/google-calendar-controller");
 const { generateCalendarFeed, getCalendarSubscriptionUrl } = require("../../controllers/shop/calendar-controller");
+const { authMiddleware } = require("../../controllers/auth/auth-controller");
 
 const { upload } = require("../../helpers/cloudinary");
 
 const router = express.Router();
 
-router.post("/create", createOrder);
-router.get("/list/:userId", getAllOrdersByUser);
-router.get("/deadlines/:userId", getOrderDeadlinesByUser);
-router.get("/calendar/:userId/feed.ics", generateCalendarFeed);
-router.get("/calendar/:userId/subscribe", getCalendarSubscriptionUrl);
-router.post("/sync-to-calendar", syncOrderDeadlinesToCalendar);
-router.get("/details/:id", getOrderDetails);
-router.post("/submit-payment-proof/:id", upload.single("paymentProof"), submitPaymentProof);
-router.post("/cancel/:id", cancelOrder);
-router.post("/archive/:id", archiveOrder);
-router.post("/unarchive/:id", unarchiveOrder);
-router.post("/restore/:id", restoreCancelledOrder);
-router.post("/delete/:id", deleteCancelledOrder);
+router.post("/create", authMiddleware, createOrder);
+router.get("/list", authMiddleware, getAllOrdersByUser);
+router.get("/deadlines", authMiddleware, getOrderDeadlinesByUser);
+router.get("/calendar/feed.ics", authMiddleware, generateCalendarFeed);
+router.get("/calendar/subscribe", authMiddleware, getCalendarSubscriptionUrl);
+router.post("/sync-to-calendar", authMiddleware, syncOrderDeadlinesToCalendar);
+router.get("/details/:id", authMiddleware, getOrderDetails);
+router.post("/submit-payment-proof/:id", authMiddleware, upload.single("paymentProof"), submitPaymentProof);
+router.post("/cancel/:id", authMiddleware, cancelOrder);
+router.post("/archive/:id", authMiddleware, archiveOrder);
+router.post("/unarchive/:id", authMiddleware, unarchiveOrder);
+router.post("/restore/:id", authMiddleware, restoreCancelledOrder);
+router.post("/delete/:id", authMiddleware, deleteCancelledOrder);
 
 module.exports = router;
 

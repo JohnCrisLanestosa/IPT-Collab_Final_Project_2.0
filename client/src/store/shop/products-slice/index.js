@@ -45,6 +45,47 @@ const shoppingProductSlice = createSlice({
     setProductDetails: (state) => {
       state.productDetails = null;
     },
+    updateProductStock: (state, action) => {
+      const { productId, totalStock } = action.payload;
+      
+      // Update product in productList
+      const productIndex = state.productList.findIndex(
+        (product) => product._id === productId
+      );
+      if (productIndex !== -1) {
+        state.productList[productIndex].totalStock = totalStock;
+      }
+      
+      // Update productDetails if it's the same product
+      if (state.productDetails && state.productDetails._id === productId) {
+        state.productDetails.totalStock = totalStock;
+      }
+    },
+    updateProductFromSocket: (state, action) => {
+      const { product } = action.payload;
+      
+      if (!product || !product._id) return;
+      
+      // Update product in productList
+      const productIndex = state.productList.findIndex(
+        (p) => p._id === product._id
+      );
+      if (productIndex !== -1) {
+        // Merge the updated product data
+        state.productList[productIndex] = {
+          ...state.productList[productIndex],
+          ...product,
+        };
+      }
+      
+      // Update productDetails if it's the same product
+      if (state.productDetails && state.productDetails._id === product._id) {
+        state.productDetails = {
+          ...state.productDetails,
+          ...product,
+        };
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -73,6 +114,6 @@ const shoppingProductSlice = createSlice({
   },
 });
 
-export const { setProductDetails } = shoppingProductSlice.actions;
+export const { setProductDetails, updateProductStock, updateProductFromSocket } = shoppingProductSlice.actions;
 
 export default shoppingProductSlice.reducer;

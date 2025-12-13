@@ -1,4 +1,6 @@
 const Order = require("../../models/Order");
+const Product = require("../../models/Product");
+const mongoose = require("mongoose");
 const {
   sendOrderStatusUpdateEmail,
   sendOrderConfirmationEmail,
@@ -8,14 +10,50 @@ const { syncSingleDeadlineToCalendar } = require("../auth/google-calendar-contro
 const getAllOrdersOfAllUsers = async (req, res) => {
   try {
     const { archived } = req.query;
-    const query = {};
+    const now = new Date();
+    let query = {};
     
-    // Filter by archived status if provided
-    if (archived !== undefined) {
-      query.isArchived = archived === "true";
+    // If archived="archive", show archived successful orders (pickedUp + isArchived)
+    if (archived === "archive") {
+      query.$and = [
+        { isArchived: true },
+        { orderStatus: "pickedUp" }
+      ];
+    }
+    // If archived="true", show cancelled orders only
+    // Note: Overdue orders should be automatically marked as cancelled by the cleanup service
+    else if (archived === "true") {
+      // Only show orders that are explicitly cancelled
+      query.$and = [
+        { orderStatus: "cancelled" },
+        { isArchived: false }
+      ];
+    } else {
+      // For "All Orders" view, exclude cancelled orders, overdue orders, and archived orders
+      // Overdue orders should be treated as cancelled (they will be marked as cancelled by cleanup service)
+      query.$and = [
+        { orderStatus: { $ne: "cancelled" } },
+        { isArchived: false },
+        {
+          $or: [
+            // Orders without payment deadline (not confirmed yet)
+            { paymentDeadline: { $exists: false } },
+            { paymentDeadline: null },
+            // Orders with payment deadline that hasn't passed
+            { paymentDeadline: { $gte: now } },
+            // Orders that are paid (even if deadline passed)
+            { paymentStatus: "paid" },
+            // Orders with payment proof submitted (even if deadline passed)
+            { 
+              paymentProof: { $exists: true, $ne: null, $ne: "" },
+              paymentStatus: "pending"
+            }
+          ]
+        }
+      ];
     }
 
-    const orders = await Order.find(query).populate("userId", "userName email");
+    const orders = await Order.find(query).populate("userId", "userName email").sort({ orderDate: -1 });
 
     if (!orders.length) {
       return res.status(404).json({
@@ -127,13 +165,122 @@ const updateOrderStatus = async (req, res) => {
     };
 
     // Set confirmation date and payment deadline when order is confirmed
+    // Also reduce stock when order is confirmed
     if (orderStatus === "confirmed" && currentStatus !== "confirmed") {
       const confirmationDate = new Date();
       updateData.confirmationDate = confirmationDate;
-      // Set payment deadline to 3 days from confirmation date
+      // Set payment deadline (configurable via env, default 3 days)
       const paymentDeadline = new Date(confirmationDate);
-      paymentDeadline.setDate(paymentDeadline.getDate() + 3);
+      const daysUntilDeadline = parseInt(process.env.PAYMENT_DEADLINE_DAYS || 3);
+      paymentDeadline.setDate(paymentDeadline.getDate() + daysUntilDeadline);
       updateData.paymentDeadline = paymentDeadline;
+
+      // Reduce stock when order is confirmed
+      // Use transaction if available for atomicity
+      let useTransaction = false;
+      let session = null;
+      
+      try {
+        session = await mongoose.startSession();
+        await session.startTransaction();
+        useTransaction = true;
+      } catch (transactionError) {
+        console.log("[Order Confirm] Transactions not available, using fallback method");
+        useTransaction = false;
+      }
+
+      const updatedProducts = []; // Track products that had stock reduced
+      
+      try {
+        if (order.cartItems && order.cartItems.length > 0) {
+          for (const cartItem of order.cartItems) {
+            const product = useTransaction 
+              ? await Product.findById(cartItem.productId).session(session)
+              : await Product.findById(cartItem.productId);
+            
+            if (!product) {
+              if (useTransaction) await session.abortTransaction();
+              return res.status(400).json({
+                success: false,
+                message: `Product not found: ${cartItem.productId}`,
+              });
+            }
+
+            // Check if there's enough stock
+            if (product.totalStock < cartItem.quantity) {
+              if (useTransaction) await session.abortTransaction();
+              return res.status(400).json({
+                success: false,
+                message: `Insufficient stock for "${product.title}". Available: ${product.totalStock}, Requested: ${cartItem.quantity}`,
+              });
+            }
+
+            // Reduce stock
+            product.totalStock -= cartItem.quantity;
+            if (useTransaction) {
+              await product.save({ session });
+            } else {
+              await product.save();
+            }
+            
+            // Track updated product for real-time notification
+            updatedProducts.push({
+              productId: product._id,
+              product: product.toObject(),
+              quantityReduced: cartItem.quantity,
+            });
+          }
+        }
+
+        if (useTransaction) {
+          await session.commitTransaction();
+        }
+        
+        // Emit real-time product updates to all clients (admin and users)
+        const io = req.app.get("io");
+        if (io && updatedProducts.length > 0) {
+          updatedProducts.forEach(({ product, quantityReduced }) => {
+            // Emit to admin room
+            io.to("admin-room").emit("product-updated", {
+              action: "stock-reduced",
+              product: product,
+              quantityReduced: quantityReduced,
+              reason: "order-confirmed",
+              orderId: order._id,
+            });
+            
+            // Emit to all users (broadcast)
+            io.emit("product-updated", {
+              action: "stock-reduced",
+              product: product,
+              quantityReduced: quantityReduced,
+              reason: "order-confirmed",
+            });
+          });
+          console.log(`[Order Confirm] Emitted stock updates for ${updatedProducts.length} product(s)`);
+        }
+      } catch (stockError) {
+        if (useTransaction && session) {
+          try {
+            await session.abortTransaction();
+          } catch (abortError) {
+            console.error("Error aborting transaction:", abortError);
+          }
+        }
+        console.error("Error reducing stock on order confirmation:", stockError);
+        return res.status(500).json({
+          success: false,
+          message: `Failed to confirm order due to stock update error: ${stockError.message || "Please try again."}`,
+        });
+      } finally {
+        if (session) {
+          try {
+            session.endSession();
+          } catch (endError) {
+            console.error("Error ending session:", endError);
+          }
+        }
+      }
     }
 
     // Automatically mark payment as paid only when the order is picked up

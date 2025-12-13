@@ -46,7 +46,7 @@ function App() {
     </div>
   );
 
-  console.log(isLoading, user);
+  // Removed debug console.log
 
   return (
     <div className="flex flex-col bg-gradient-to-br from-background to-blue-50 dark:from-background dark:to-card">

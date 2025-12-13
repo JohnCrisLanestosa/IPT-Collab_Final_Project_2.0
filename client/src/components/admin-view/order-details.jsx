@@ -228,6 +228,8 @@ function AdminOrderDetailsView({ orderDetails }) {
                     ? "bg-purple-500 hover:bg-purple-600"
                     : orderDetails?.orderStatus === "pickedUp"
                     ? "bg-green-500 hover:bg-green-600"
+                    : orderDetails?.orderStatus === "cancelled"
+                    ? "bg-red-600 hover:bg-red-700"
                     : "bg-secondary hover:bg-accent text-foreground"
                 }`}
               >
@@ -235,10 +237,20 @@ function AdminOrderDetailsView({ orderDetails }) {
                   ? "Ready for Pickup"
                   : orderDetails?.orderStatus === "pickedUp"
                   ? "Picked up"
+                  : orderDetails?.orderStatus === "cancelled" && orderDetails?.cancellationReason
+                  ? orderDetails.cancellationReason
                   : orderDetails?.orderStatus?.charAt(0).toUpperCase() + orderDetails?.orderStatus?.slice(1)}
               </Badge>
             </Label>
           </div>
+          {orderDetails?.cancellationReason && (
+            <div className="flex mt-2 items-center justify-between gap-2">
+              <p className="font-medium text-red-600">Cancellation Reason</p>
+              <Label className="text-red-600 font-semibold">
+                {orderDetails.cancellationReason}
+              </Label>
+            </div>
+          )}
         </div>
         <Separator />
         

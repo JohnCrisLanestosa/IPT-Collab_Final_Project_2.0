@@ -1,12 +1,39 @@
 const Order = require("../../models/Order");
 const Cart = require("../../models/Cart");
 const Product = require("../../models/Product");
+const mongoose = require("mongoose");
 const { imageUploadUtil } = require("../../helpers/cloudinary");
 
 const createOrder = async (req, res) => {
   try {
+    // Get userId from authenticated user or request body (for backward compatibility)
+    // Priority: authenticated user > request body (but validate it matches if both exist)
+    let userId;
+    
+    if (req.user && req.user.id) {
+      // User is authenticated via middleware
+      userId = req.user.id;
+      
+      // If userId is also in body, validate it matches authenticated user
+      if (req.body.userId && req.body.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: "User ID mismatch. You can only create orders for yourself.",
+        });
+      }
+    } else if (req.body.userId) {
+      // Fallback: if no authenticated user but userId in body, use it
+      // This allows backward compatibility but should be fixed in frontend
+      userId = req.body.userId;
+      console.warn("Order created without authentication middleware - userId from request body. This should be fixed.");
+    } else {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please log in to place an order.",
+      });
+    }
+
     const {
-      userId,
       cartItems,
       addressInfo,
       orderStatus,
@@ -18,104 +45,98 @@ const createOrder = async (req, res) => {
       cartId,
     } = req.body;
 
-    // Validate stock availability before creating the order
+    // Validate required fields
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cart items are required to create an order.",
+      });
+    }
+
+    if (!totalAmount || totalAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Total amount must be greater than 0.",
+      });
+    }
+
+    // Validate stock availability first
     if (cartItems && cartItems.length > 0) {
       for (const cartItem of cartItems) {
-        try {
-          const product = await Product.findById(cartItem.productId);
-          
-          if (!product) {
-            return res.status(400).json({
-              success: false,
-              message: `Product not found: ${cartItem.productId}`,
-            });
-          }
-
-          // Check if there's enough stock
-          if (product.totalStock < cartItem.quantity) {
-            return res.status(400).json({
-              success: false,
-              message: `Insufficient stock for "${product.title}". Available: ${product.totalStock}, Requested: ${cartItem.quantity}`,
-            });
-          }
-        } catch (error) {
-          console.error(`Error validating stock for product ${cartItem.productId}:`, error);
+        const product = await Product.findById(cartItem.productId);
+        
+        if (!product) {
           return res.status(400).json({
             success: false,
-            message: `Error validating product stock: ${error.message}`,
+            message: `Product not found: ${cartItem.productId}`,
+          });
+        }
+
+        // Check if there's enough stock
+        if (product.totalStock < cartItem.quantity) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for "${product.title}". Available: ${product.totalStock}, Requested: ${cartItem.quantity}`,
           });
         }
       }
     }
 
-    const newlyCreatedOrder = new Order({
-      userId,
-      cartId,
-      cartItems,
-      addressInfo,
-      orderStatus,
-      paymentMethod,
-      paymentStatus,
-      totalAmount,
-      orderDate,
-      orderUpdateDate,
-    });
+    // Create order (stock will be reduced when admin confirms the order)
+    try {
+      // Create order
+      const newlyCreatedOrder = new Order({
+        userId,
+        cartId,
+        cartItems,
+        addressInfo,
+        orderStatus,
+        paymentMethod,
+        paymentStatus,
+        totalAmount,
+        orderDate,
+        orderUpdateDate,
+      });
 
-    await newlyCreatedOrder.save();
+      await newlyCreatedOrder.save();
+      
+      const orderId = newlyCreatedOrder._id;
+      
+      // Clear the user's cart after successful order creation
+      await Cart.findOneAndDelete({ userId });
 
-    // Reduce product stock for each item in the order
-    for (const cartItem of cartItems) {
-      try {
-        const product = await Product.findById(cartItem.productId);
-        
-        if (!product) {
-          console.error(`Product not found: ${cartItem.productId}`);
-          continue; // Skip if product not found, but don't fail the entire order
-        }
+      // Populate order with user details for notification
+      const populatedOrder = await Order.findById(orderId)
+        .populate("userId", "userName email")
+        .exec();
 
-        // Check if there's enough stock
-        if (product.totalStock < cartItem.quantity) {
-          console.error(`Insufficient stock for product ${product.title}. Available: ${product.totalStock}, Requested: ${cartItem.quantity}`);
-          // Continue anyway - stock check should have been done before order creation
-          // But we'll reduce what we can
-        }
-
-        // Reduce the stock (ensure it doesn't go below 0)
-        product.totalStock = Math.max(0, product.totalStock - cartItem.quantity);
-        await product.save();
-      } catch (error) {
-        console.error(`Error reducing stock for product ${cartItem.productId}:`, error);
-        // Continue with other products even if one fails
+      // Emit new order notification to admin room
+      const io = req.app.get("io");
+      if (io) {
+        io.to("admin-room").emit("new-order", {
+          orderId: populatedOrder._id,
+          userId: populatedOrder.userId?._id,
+          userName: populatedOrder.userId?.userName || "Unknown User",
+          totalAmount: populatedOrder.totalAmount,
+          orderStatus: populatedOrder.orderStatus,
+          orderDate: populatedOrder.orderDate,
+          cartItems: populatedOrder.cartItems,
+          addressInfo: populatedOrder.addressInfo,
+        });
       }
-    }
 
-    // Clear the user's cart after successful order creation
-    await Cart.findOneAndDelete({ userId });
-
-    // Populate order with user details for notification
-    const populatedOrder = await Order.findById(newlyCreatedOrder._id)
-      .populate("userId", "userName email")
-      .exec();
-
-    // Emit new order notification to admin room
-    const io = req.app.get("io");
-    if (io) {
-      io.to("admin-room").emit("new-order", {
-        orderId: populatedOrder._id,
-        userId: populatedOrder.userId?._id,
-        userName: populatedOrder.userId?.userName || "Unknown User",
-        totalAmount: populatedOrder.totalAmount,
-        orderStatus: populatedOrder.orderStatus,
-        orderDate: populatedOrder.orderDate,
-        cartItems: populatedOrder.cartItems,
-        addressInfo: populatedOrder.addressInfo,
+      res.status(201).json({
+        success: true,
+        orderId: orderId,
+      });
+    } catch (error) {
+      console.error("Error creating order:", error);
+      console.error("Error details:", error.message, error.stack);
+      return res.status(500).json({
+        success: false,
+        message: `Failed to create order: ${error.message || "Please try again."}`,
       });
     }
-
-    res.status(201).json({
-      success: true,
-      orderId: newlyCreatedOrder._id,
-    });
   } catch (e) {
     console.log(e);
     res.status(500).json({
@@ -127,7 +148,7 @@ const createOrder = async (req, res) => {
 
 const getAllOrdersByUser = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id; // Use authenticated user's ID
     const { archived } = req.query;
 
     const query = { userId };
@@ -162,6 +183,7 @@ const getAllOrdersByUser = async (req, res) => {
 const getOrderDetails = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id; // Use authenticated user's ID
 
     const order = await Order.findById(id);
 
@@ -169,6 +191,15 @@ const getOrderDetails = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Order not found!",
+      });
+    }
+
+    // Verify that the order belongs to the authenticated user
+    const orderUserId = order.userId?.toString?.() || String(order.userId);
+    if (orderUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to view this order!",
       });
     }
 
@@ -187,11 +218,11 @@ const getOrderDetails = async (req, res) => {
 
 const getOrderDeadlinesByUser = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id; // Use authenticated user's ID
 
-    // If userId === 'all' return deadlines for all users (admin use-case)
-    const query = {};
-    if (userId && userId !== "all") query.userId = userId;
+    // Regular users can only see their own deadlines
+    // Admins would need to use admin routes to see all deadlines
+    const query = { userId };
 
     // Only include non-archived orders
     query.isArchived = false;
@@ -221,6 +252,7 @@ const getOrderDeadlinesByUser = async (req, res) => {
 const submitPaymentProof = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id; // Use authenticated user's ID
 
     const order = await Order.findById(id);
 
@@ -228,6 +260,15 @@ const submitPaymentProof = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Order not found!",
+      });
+    }
+
+    // Verify that the order belongs to the authenticated user
+    const orderUserId = order.userId?.toString?.() || String(order.userId);
+    if (orderUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to submit payment proof for this order!",
       });
     }
 
@@ -263,7 +304,7 @@ const submitPaymentProof = async (req, res) => {
 const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
+    const userId = req.user.id; // Use authenticated user's ID
 
     const order = await Order.findById(id);
 
@@ -274,20 +315,18 @@ const cancelOrder = async (req, res) => {
       });
     }
 
-    // Verify that the order belongs to the user
+    // Verify that the order belongs to the authenticated user
     // Handle both ObjectId and string comparisons
     const orderUserId = order.userId?.toString?.() || String(order.userId);
-    const requestUserId = String(userId);
-    
-    if (orderUserId !== requestUserId) {
+    if (orderUserId !== userId) {
       return res.status(403).json({
         success: false,
         message: "You are not authorized to cancel this order!",
       });
     }
 
-    // Check if order can be cancelled (only pending, confirmed, or preparing orders can be cancelled)
-    const cancellableStatuses = ["pending", "confirmed", "preparing"];
+    // Check if order can be cancelled (only pending, confirmed, or readyForPickup orders can be cancelled)
+    const cancellableStatuses = ["pending", "confirmed", "readyForPickup"];
     if (!cancellableStatuses.includes(order.orderStatus)) {
       return res.status(400).json({
         success: false,
@@ -303,29 +342,132 @@ const cancelOrder = async (req, res) => {
       });
     }
 
+    // Save the original status before updating (needed to determine if stock should be restored)
+    const originalStatus = order.orderStatus;
+
     // Update order status to cancelled
     order.orderStatus = "cancelled";
     order.orderUpdateDate = new Date();
 
     await order.save();
 
-    // Restore product stock for each item in the cancelled order
-    if (order.cartItems && order.cartItems.length > 0) {
-      for (const cartItem of order.cartItems) {
-        try {
-          const product = await Product.findById(cartItem.productId);
-          
-          if (!product) {
-            console.error(`Product not found: ${cartItem.productId}`);
-            continue; // Skip if product not found
-          }
+    // Populate order with user details for notification
+    const populatedOrder = await Order.findById(order._id)
+      .populate("userId", "userName email")
+      .exec();
 
-          // Restore the stock
-          product.totalStock = (product.totalStock || 0) + cartItem.quantity;
-          await product.save();
-        } catch (error) {
-          console.error(`Error restoring stock for product ${cartItem.productId}:`, error);
-          // Continue with other products even if one fails
+    // Emit order cancelled notification to admin room
+    const io = req.app.get("io");
+    if (io) {
+      io.to("admin-room").emit("order-cancelled", {
+        orderId: populatedOrder._id,
+        userId: populatedOrder.userId?._id,
+        userName: populatedOrder.userId?.userName || "Unknown User",
+        totalAmount: populatedOrder.totalAmount,
+        orderStatus: populatedOrder.orderStatus,
+        orderDate: populatedOrder.orderDate,
+        cancellationReason: populatedOrder.cancellationReason,
+        cartItems: populatedOrder.cartItems,
+        addressInfo: populatedOrder.addressInfo,
+      });
+    }
+
+    // Only restore stock if the order was confirmed (stock was reduced on confirmation)
+    // Stock is only reduced when order status changes to "confirmed", so we check if
+    // the order was in a status that indicates it was confirmed
+    const confirmedStatuses = ["confirmed", "readyForPickup", "pickedUp"];
+    const wasConfirmed = confirmedStatuses.includes(originalStatus);
+    
+    if (wasConfirmed) {
+      // Restore product stock for each item in the cancelled order
+      // Use transaction to ensure atomicity
+      let useTransaction = false;
+      let session = null;
+      
+      try {
+        session = await mongoose.startSession();
+        await session.startTransaction();
+        useTransaction = true;
+      } catch (transactionError) {
+        console.log("[Order Cancel] Transactions not available, using fallback method");
+        useTransaction = false;
+      }
+      
+      const restoredProducts = []; // Track products that had stock restored
+      
+      try {
+        if (order.cartItems && order.cartItems.length > 0) {
+          for (const cartItem of order.cartItems) {
+            const product = useTransaction 
+              ? await Product.findById(cartItem.productId).session(session)
+              : await Product.findById(cartItem.productId);
+            
+            if (!product) {
+              console.error(`[Order Cancel] Product not found: ${cartItem.productId}`);
+              continue; // Skip if product not found
+            }
+
+            // Restore the stock atomically
+            product.totalStock = (product.totalStock || 0) + cartItem.quantity;
+            if (useTransaction) {
+              await product.save({ session });
+            } else {
+              await product.save();
+            }
+            
+            // Track restored product for real-time notification
+            restoredProducts.push({
+              productId: product._id,
+              product: product.toObject(),
+              quantityRestored: cartItem.quantity,
+            });
+          }
+        }
+        
+        if (useTransaction) {
+          await session.commitTransaction();
+        }
+        
+        // Emit real-time product updates to all clients
+        const io = req.app.get("io");
+        if (io && restoredProducts.length > 0) {
+          restoredProducts.forEach(({ product, quantityRestored }) => {
+            // Emit to admin room
+            io.to("admin-room").emit("product-updated", {
+              action: "stock-restored",
+              product: product,
+              quantityRestored: quantityRestored,
+              reason: "order-cancelled",
+              orderId: order._id,
+            });
+            
+            // Emit to all users (broadcast)
+            io.emit("product-updated", {
+              action: "stock-restored",
+              product: product,
+              quantityRestored: quantityRestored,
+              reason: "order-cancelled",
+            });
+          });
+          console.log(`[Order Cancel] Emitted stock updates for ${restoredProducts.length} product(s)`);
+        }
+      } catch (error) {
+        if (useTransaction && session) {
+          try {
+            await session.abortTransaction();
+          } catch (abortError) {
+            console.error("Error aborting transaction:", abortError);
+          }
+        }
+        console.error(`[Order Cancel] Error restoring stock:`, error);
+        // Log but don't fail - order is already cancelled
+      } finally {
+        if (session) {
+          try {
+            session.endSession();
+          } catch (endError) {
+            console.error("Error ending session:", endError);
+          }
         }
       }
     }
@@ -347,33 +489,42 @@ const cancelOrder = async (req, res) => {
 const restoreCancelledOrder = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id; // Use authenticated user's ID
 
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found!" });
     }
 
+    // Verify that the order belongs to the authenticated user
+    const orderUserId = order.userId?.toString?.() || String(order.userId);
+    if (orderUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to restore this order!",
+      });
+    }
+
     if (order.orderStatus !== "cancelled") {
       return res.status(400).json({ success: false, message: "Only cancelled orders can be restored." });
     }
 
-    // Try to re-reserve stock for the items
-    if (order.cartItems && order.cartItems.length > 0) {
-      for (const cartItem of order.cartItems) {
-        try {
-          const product = await Product.findById(cartItem.productId);
-          if (!product) continue;
-          // Reduce stock again (ensure it doesn't go below 0)
-          product.totalStock = Math.max(0, (product.totalStock || 0) - cartItem.quantity);
-          await product.save();
-        } catch (err) {
-          console.error(`Error restoring stock for product ${cartItem.productId}:`, err);
-        }
-      }
+    // Prevent restoring orders that were cancelled due to failure to pay
+    if (order.cancellationReason === "Cancelled due to failure to pay") {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Orders cancelled due to failure to pay cannot be restored." 
+      });
     }
+
+    // Note: Stock is NOT reduced when restoring a cancelled order
+    // Stock will only be reduced when the admin confirms the order (changes status to "confirmed")
+    // This ensures stock is only reduced once when the order is actually confirmed
 
     order.orderStatus = "pending";
     order.orderUpdateDate = new Date();
+    // Clear cancellation reason when restoring
+    order.cancellationReason = null;
     await order.save();
 
     res.status(200).json({ success: true, message: "Order restored successfully.", data: order });
@@ -386,9 +537,20 @@ const restoreCancelledOrder = async (req, res) => {
 const deleteCancelledOrder = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id; // Use authenticated user's ID
+
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found!" });
+    }
+
+    // Verify that the order belongs to the authenticated user
+    const orderUserId = order.userId?.toString?.() || String(order.userId);
+    if (orderUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this order!",
+      });
     }
 
     if (order.orderStatus !== "cancelled") {
@@ -406,7 +568,7 @@ const deleteCancelledOrder = async (req, res) => {
 const archiveOrder = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
+    const userId = req.user.id; // Use authenticated user's ID
 
     const order = await Order.findById(id);
 
@@ -417,23 +579,20 @@ const archiveOrder = async (req, res) => {
       });
     }
 
-    // Verify that the order belongs to the user
-    if (order.userId.toString() !== userId) {
+    // Verify that the order belongs to the authenticated user
+    const orderUserId = order.userId?.toString?.() || String(order.userId);
+    if (orderUserId !== userId) {
       return res.status(403).json({
         success: false,
         message: "You are not authorized to archive this order!",
       });
     }
 
-    // Only allow archiving successful (paid) or picked-up orders
-    const canArchive = 
-      order.orderStatus === "pickedUp" || 
-      (order.paymentStatus === "paid" && order.orderStatus !== "pending" && order.orderStatus !== "confirmed");
-
-    if (!canArchive) {
+    // Only allow archiving cancelled or pickedUp orders (consistent with admin)
+    if (order.orderStatus !== "pickedUp" && order.orderStatus !== "cancelled") {
       return res.status(400).json({
         success: false,
-        message: "Only successful (paid) or picked-up orders can be archived!",
+        message: "Only cancelled or picked-up orders can be archived!",
       });
     }
 
@@ -463,7 +622,7 @@ const archiveOrder = async (req, res) => {
 const unarchiveOrder = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
+    const userId = req.user.id; // Use authenticated user's ID
 
     const order = await Order.findById(id);
 
@@ -474,8 +633,9 @@ const unarchiveOrder = async (req, res) => {
       });
     }
 
-    // Verify that the order belongs to the user
-    if (order.userId.toString() !== userId) {
+    // Verify that the order belongs to the authenticated user
+    const orderUserId = order.userId?.toString?.() || String(order.userId);
+    if (orderUserId !== userId) {
       return res.status(403).json({
         success: false,
         message: "You are not authorized to unarchive this order!",

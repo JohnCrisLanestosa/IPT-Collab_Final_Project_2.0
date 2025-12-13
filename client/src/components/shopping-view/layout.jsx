@@ -7,6 +7,7 @@ import { io } from "socket.io-client";
 import { addNotification, setConnectionStatus } from "@/store/notifications/notification-slice";
 import { useToast } from "@/components/ui/use-toast";
 import { getAllOrdersByUserId, getOrderDetails } from "@/store/shop/order-slice";
+import { updateProductFromSocket } from "@/store/shop/products-slice";
 
 function ShoppingLayout() {
   const { user } = useSelector((state) => state.auth);
@@ -79,8 +80,19 @@ function ShoppingLayout() {
       }
     });
 
+    // Listen for real-time product updates (stock changes)
+    socket.on("product-updated", (payload) => {
+      console.log("[Socket] Product update received:", payload);
+      
+      if (payload?.product) {
+        // Update product in Redux store (silent update, no alerts)
+        dispatch(updateProductFromSocket({ product: payload.product }));
+      }
+    });
+
     return () => {
       socket.off("order-updated");
+      socket.off("product-updated");
       socket.disconnect();
     };
   }, [dispatch, toast, user?.id]);

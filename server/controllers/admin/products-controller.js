@@ -408,10 +408,12 @@ const unarchiveProduct = async (req, res) => {
 };
 
 // Lock a product for editing (2PL - Phase 1: Growing Phase)
+// Uses atomic findOneAndUpdate to prevent race conditions
 const lockProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { userId, userName } = req.body;
+    const LOCK_DURATION_MS = (parseInt(process.env.PRODUCT_LOCK_DURATION_MINUTES) || 5) * 60 * 1000; // Configurable lock duration
 
     if (!userId) {
       return res.status(400).json({
@@ -420,61 +422,50 @@ const lockProduct = async (req, res) => {
       });
     }
 
-    const product = await Product.findById(id);
+    const now = new Date();
+    const lockExpiry = new Date(now.getTime() + LOCK_DURATION_MS);
+
+    // Atomically acquire lock only if product is not locked or lock has expired
+    const product = await Product.findOneAndUpdate(
+      {
+        _id: id,
+        $or: [
+          { isLocked: false },
+          { lockExpiry: { $lt: now } }, // Lock expired
+          { lockedBy: userId } // Same user refreshing lock
+        ]
+      },
+      {
+        isLocked: true,
+        lockedBy: userId,
+        lockedByName: userName || "Unknown User",
+        lockedAt: now,
+        lockExpiry: lockExpiry,
+      },
+      { new: true }
+    );
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
-    }
-
-    // Check if product is already locked
-    if (product.isLocked) {
-      // Check if lock has expired
-      if (new Date() > product.lockExpiry) {
-        // Lock expired, can acquire new lock
-        product.isLocked = true;
-        product.lockedBy = userId;
-        product.lockedByName = userName || "Unknown User";
-        product.lockedAt = new Date();
-        product.lockExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes lock duration
-        await product.save();
-
-        return res.status(200).json({
-          success: true,
-          message: "Lock acquired (previous lock expired)",
-          data: product,
+      // Product not found or already locked by another user
+      const existingProduct = await Product.findById(id);
+      if (!existingProduct) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
         });
-      } else if (product.lockedBy === userId) {
-        // Same user, refresh the lock
-        product.lockExpiry = new Date(Date.now() + 5 * 60 * 1000);
-        await product.save();
+      }
 
-        return res.status(200).json({
-          success: true,
-          message: "Lock refreshed",
-          data: product,
-        });
-      } else {
-        // Locked by another user
+      // Check if locked by another user
+      if (existingProduct.isLocked && existingProduct.lockedBy !== userId && existingProduct.lockExpiry > now) {
         return res.status(423).json({
           success: false,
-          message: `Product is currently locked by ${product.lockedByName || "another user"}. Lock expires at ${product.lockExpiry.toLocaleTimeString()}`,
-          lockedBy: product.lockedBy,
-          lockedByName: product.lockedByName,
-          lockExpiry: product.lockExpiry,
+          message: `Product is currently locked by ${existingProduct.lockedByName || "another user"}. Lock expires at ${existingProduct.lockExpiry.toLocaleTimeString()}`,
+          lockedBy: existingProduct.lockedBy,
+          lockedByName: existingProduct.lockedByName,
+          lockExpiry: existingProduct.lockExpiry,
         });
       }
     }
-
-    // Acquire lock (Growing Phase)
-    product.isLocked = true;
-    product.lockedBy = userId;
-    product.lockedByName = userName || "Unknown User";
-    product.lockedAt = new Date();
-    product.lockExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes lock duration
-    await product.save();
 
     // Emit real-time update to all admins
     const io = req.app.get("io");

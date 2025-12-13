@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Dialog } from "../ui/dialog";
@@ -18,27 +18,95 @@ import {
   resetOrderDetails,
 } from "@/store/admin/order-slice";
 import { Badge } from "../ui/badge";
-import { ArrowLeft, Trash2, Clock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Trash2, Clock, AlertTriangle, Archive } from "lucide-react";
+import { io } from "socket.io-client";
+import { useToast } from "../ui/use-toast";
 
 function AdminOrdersView() {
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState("all"); // "all", "cancelled", "archive"
   const { orderList, orderDetails } = useSelector((state) => state.adminOrder);
   const dispatch = useDispatch();
+  const socketRef = useRef(null);
+  const { toast } = useToast();
 
   function handleFetchOrderDetails(getId) {
     dispatch(getOrderDetailsForAdmin(getId));
   }
 
   useEffect(() => {
-    dispatch(getAllOrdersForAdmin(showArchived));
-  }, [dispatch, showArchived]);
+    // Pass view mode to backend: "cancelled" for cancelled/overdue, "archive" for archived, "all" for active
+    const archivedParam = viewMode === "cancelled" ? "true" : viewMode === "archive" ? "archive" : "false";
+    dispatch(getAllOrdersForAdmin(archivedParam));
+  }, [dispatch, viewMode]);
 
   console.log(orderDetails, "orderList");
 
   useEffect(() => {
     if (orderDetails !== null) setOpenDetailsDialog(true);
   }, [orderDetails]);
+
+  // Set up socket connection for real-time order updates
+  useEffect(() => {
+    // Connect to WebSocket server
+    socketRef.current = io("http://localhost:5000", {
+      transports: ["websocket"],
+    });
+
+    const socket = socketRef.current;
+
+    socket.on("connect", () => {
+      console.log("[Admin Orders] Connected to WebSocket server");
+      // Join admin room to receive notifications
+      socket.emit("join-admin-room");
+    });
+
+    socket.on("disconnect", () => {
+      console.log("[Admin Orders] Disconnected from WebSocket server");
+    });
+
+    // Listen for new order events
+    socket.on("new-order", (orderData) => {
+      console.log("[Admin Orders] New order received:", orderData);
+      
+      // Only refresh if we're viewing "all" orders (not cancelled or archive)
+      if (viewMode === "all") {
+        dispatch(getAllOrdersForAdmin("false"));
+        
+        toast({
+          title: "New Order Received!",
+          description: `Order from ${orderData.userName || "Unknown User"} - ₱${orderData.totalAmount?.toFixed(2) || "0.00"}`,
+          duration: 3000,
+          variant: "success",
+        });
+      }
+    });
+
+    // Listen for order cancelled events
+    socket.on("order-cancelled", (orderData) => {
+      console.log("[Admin Orders] Order cancelled:", orderData);
+      
+      // Refresh the appropriate view based on current viewMode
+      const archivedParam = viewMode === "cancelled" ? "true" : viewMode === "archive" ? "archive" : "false";
+      dispatch(getAllOrdersForAdmin(archivedParam));
+      
+      toast({
+        title: "Order Cancelled",
+        description: `Order ${orderData.orderId?.slice(-8) || ""} from ${orderData.userName || "Unknown User"} has been cancelled.`,
+        duration: 3000,
+        variant: "destructive",
+      });
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (socket) {
+        socket.off("new-order");
+        socket.off("order-cancelled");
+        socket.disconnect();
+      }
+    };
+  }, [dispatch, toast, viewMode]);
 
   // Calculate payment deadline status for an order
   const getPaymentDeadlineStatus = (order) => {
@@ -55,40 +123,56 @@ function AdminOrdersView() {
     return { deadline, hoursRemaining, isExpired, isUrgent, isWarning };
   };
 
+
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <CardTitle>
-              {showArchived ? "Cancelled Orders" : "All Orders"}
+              {viewMode === "cancelled" 
+                ? "Cancelled Orders" 
+                : viewMode === "archive"
+                ? "Archive"
+                : "All Orders"}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {showArchived
-                ? "View orders currently stored in the recycle bin."
+              {viewMode === "cancelled"
+                ? "View cancelled orders (including orders cancelled due to failure to pay)."
+                : viewMode === "archive"
+                ? "View archived successful orders (completed orders)."
                 : "Track and manage live customer orders."}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {showArchived ? (
+            {viewMode !== "all" ? (
               <Button
                 variant="ghost"
                 className="flex items-center gap-2"
-                onClick={() => setShowArchived(false)}
+                onClick={() => setViewMode("all")}
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
             ) : (
-              <Button
-                variant="outline"
-                onClick={() => setShowArchived(true)}
-                className="flex items-center gap-2"
-                aria-pressed={showArchived}
-              >
-                <Trash2 className="h-4 w-4" />
-                Cancelled Orders
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setViewMode("cancelled")}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  View Cancelled Orders
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setViewMode("archive")}
+                  className="flex items-center gap-2"
+                >
+                  <Archive className="h-4 w-4" />
+                  View Archive
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -128,6 +212,8 @@ function AdminOrdersView() {
                             ? "bg-purple-500 hover:bg-purple-600"
                             : orderItem?.orderStatus === "pickedUp"
                             ? "bg-green-500 hover:bg-green-600"
+                            : orderItem?.orderStatus === "cancelled"
+                            ? "bg-red-600 hover:bg-red-700"
                             : "bg-secondary hover:bg-accent text-foreground"
                         }`}
                       >
@@ -135,6 +221,10 @@ function AdminOrdersView() {
                           ? "Ready for Pickup"
                           : orderItem?.orderStatus === "pickedUp"
                           ? "Picked up"
+                          : orderItem?.orderStatus === "cancelled" && orderItem?.cancellationReason
+                          ? orderItem.cancellationReason
+                          : orderItem?.orderStatus === "cancelled"
+                          ? "Cancelled"
                             : orderItem?.orderStatus?.charAt(0).toUpperCase() +
                               orderItem?.orderStatus?.slice(1)}
                         </Badge>
@@ -174,7 +264,7 @@ function AdminOrdersView() {
                                 : "text-muted-foreground"
                             }`}>
                               {deadlineStatus.isExpired
-                                ? "Expired - Will Cancel"
+                                ? viewMode === "cancelled" ? "Overdue" : "Expired - Will Cancel"
                                 : deadlineStatus.isUrgent
                                 ? `${deadlineStatus.hoursRemaining}h left`
                                 : deadlineStatus.deadline.toLocaleDateString()}
@@ -197,7 +287,11 @@ function AdminOrdersView() {
                     <TableCell>
                       {orderItem?.isArchived ? (
                         <Badge className="bg-gray-500 hover:bg-gray-600">
-                          In Recycle Bin
+                          Archived
+                        </Badge>
+                      ) : orderItem?.orderStatus === "cancelled" ? (
+                        <Badge className="bg-red-600 hover:bg-red-700">
+                          Cancelled
                         </Badge>
                       ) : orderItem?.orderStatus === "pickedUp" ? (
                         <Badge className="bg-emerald-500 hover:bg-emerald-600">

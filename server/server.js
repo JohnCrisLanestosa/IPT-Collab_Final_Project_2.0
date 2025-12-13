@@ -136,6 +136,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
+    // Leave all rooms to prevent memory leaks
+    const rooms = Array.from(socket.rooms);
+    rooms.forEach(room => {
+      if (room !== socket.id) { // Don't leave the default room (socket.id)
+        socket.leave(room);
+      }
+    });
     console.log("Client disconnected:", socket.id);
   });
 });

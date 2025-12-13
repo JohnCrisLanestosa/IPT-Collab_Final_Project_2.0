@@ -17,11 +17,11 @@ import {
   getAllOrdersByUserId,
   getOrderDetails,
   resetOrderDetails,
-  restoreCancelledOrder,
   deleteCancelledOrder,
 } from "@/store/shop/order-slice";
+import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import { useToast } from "../ui/use-toast";
-import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const formatDateTime = (dateInput) => {
@@ -90,32 +90,41 @@ useEffect(() => {
     setOpenDetailsDialog(open);
   };
 
-  const handleRestoreOrder = async (orderId) => {
-    if (!orderId || !user?.id) return;
-
-    setProcessingId(orderId);
-    try {
-      const result = await dispatch(
-        restoreCancelledOrder({ id: orderId, userId: user.id })
-      ).unwrap();
-
+  const handleBuyAgain = async (order) => {
+    if (!order || !order.cartItems || order.cartItems.length === 0 || !user?.id) {
       toast({
-        title: "Order restored",
-        description:
-          result.message || "The order has been moved back to your active orders.",
+        title: "No items to add to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingId(order._id);
+    try {
+      // Add all items sequentially to ensure proper order
+      const promises = order.cartItems.map((item) =>
+        dispatch(
+          addToCart({
+            productId: item.productId,
+            quantity: item.quantity,
+          })
+        )
+      );
+
+      await Promise.all(promises);
+      
+      // Refresh cart and show success message
+      await dispatch(fetchCartItems());
+      toast({
+        title: `Added ${order.cartItems.length} item(s) to cart!`,
         variant: "success",
       });
-
-      dispatch(getAllOrdersByUserId({ userId: user.id }));
+      
+      // Navigate to checkout page
+      navigate("/shop/checkout");
     } catch (error) {
-      const description =
-        error?.message ||
-        error?.response?.data?.message ||
-        "Failed to restore the order. Please try again.";
-
       toast({
-        title: "Restore failed",
-        description,
+        title: "Some items could not be added to cart",
         variant: "destructive",
       });
     } finally {
@@ -172,11 +181,11 @@ useEffect(() => {
             <div className="flex items-center gap-3">
               <CardTitle>Recycle Bin</CardTitle>
               <Badge variant="outline" className="uppercase tracking-wide">
-                Cancelled Orders
+                View Cancelled Orders
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Restore or permanently delete orders you have cancelled.
+              Buy again or permanently delete orders you have cancelled.
             </p>
           </div>
           <Button
@@ -220,6 +229,7 @@ useEffect(() => {
                     <TableHead>Cancelled On</TableHead>
                     <TableHead>Order Date</TableHead>
                     <TableHead>Payment Status</TableHead>
+                    <TableHead>Cancellation Reason</TableHead>
                     <TableHead>Total Amount</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -247,6 +257,15 @@ useEffect(() => {
                           {order.paymentStatus}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {order.cancellationReason ? (
+                          <Badge className="bg-red-600 hover:bg-red-700 text-white">
+                            {order.cancellationReason}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>₱{order.totalAmount}</TableCell>
                       <TableCell>
                         <div className="flex flex-col sm:flex-row gap-2">
@@ -257,16 +276,19 @@ useEffect(() => {
                           >
                             View Details
                           </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleRestoreOrder(order._id)}
-                            disabled={processingId === order._id}
-                            className="flex items-center gap-2"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            Restore
-                          </Button>
+                          {/* Only show buy again button if order was not cancelled due to failure to pay */}
+                          {order.cancellationReason !== "Cancelled due to failure to pay" && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleBuyAgain(order)}
+                              disabled={processingId === order._id}
+                              className="flex items-center gap-2"
+                            >
+                              <ShoppingCart className="h-4 w-4" />
+                              Buy Again
+                            </Button>
+                          )}
                           <Button
                             variant="destructive"
                             size="sm"

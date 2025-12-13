@@ -6,14 +6,7 @@ const Order = require("../../models/Order");
  */
 const generateCalendarFeed = async (req, res) => {
   try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID is required",
-      });
-    }
+    const userId = req.user.id; // Use authenticated user's ID
 
     // Find all orders with payment deadlines (including expired for calendar visibility)
     const orders = await Order.find({
@@ -95,7 +88,7 @@ END:VEVENT
 
     // Set headers for iCal file
     res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="payment-deadlines-${userId}.ics"`);
+    res.setHeader("Content-Disposition", `attachment; filename="payment-deadlines-${userId.toString()}.ics"`);
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
@@ -115,18 +108,11 @@ END:VEVENT
  */
 const getCalendarSubscriptionUrl = async (req, res) => {
   try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID is required",
-      });
-    }
+    const userId = req.user.id; // Use authenticated user's ID
 
     // Generate the calendar feed URL
     const baseUrl = process.env.SERVER_URL || "http://localhost:5000";
-    const calendarUrl = `${baseUrl}/api/shop/order/calendar/${userId}/feed.ics`;
+    const calendarUrl = `${baseUrl}/api/shop/order/calendar/feed.ics`;
 
     res.status(200).json({
       success: true,

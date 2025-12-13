@@ -76,9 +76,20 @@ const OrderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    cancellationReason: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
+
+// Add indexes for frequently queried fields
+OrderSchema.index({ userId: 1 });
+OrderSchema.index({ paymentDeadline: 1 });
+OrderSchema.index({ orderStatus: 1 });
+OrderSchema.index({ isArchived: 1 });
+OrderSchema.index({ userId: 1, isArchived: 1 }); // Compound index for user orders
 
 module.exports = mongoose.model("Order", OrderSchema);
 

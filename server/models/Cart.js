@@ -25,5 +25,8 @@ const CartSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Add index for frequently queried field
+CartSchema.index({ userId: 1 });
+
 module.exports = mongoose.model("Cart", CartSchema);
 

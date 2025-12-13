@@ -148,7 +148,7 @@ function ShoppingOrders() {
             onClick={() => setShowCancelled(true)}
           >
             <Trash2 className="h-4 w-4" />
-            Cancelled Orders
+            View Cancelled Orders
           </Button>
         </div>
       </CardHeader>
@@ -191,6 +191,8 @@ function ShoppingOrders() {
                             ? "bg-purple-500 hover:bg-purple-600"
                             : orderItem?.orderStatus === "pickedUp"
                             ? "bg-green-500 hover:bg-green-600"
+                            : orderItem?.orderStatus === "cancelled"
+                            ? "bg-red-600 hover:bg-red-700"
                             : "bg-secondary hover:bg-accent text-foreground"
                         }`}
                       >
@@ -198,6 +200,8 @@ function ShoppingOrders() {
                           ? "Ready for Pickup"
                           : orderItem?.orderStatus === "pickedUp"
                           ? "Picked up"
+                          : orderItem?.orderStatus === "cancelled" && orderItem?.cancellationReason
+                          ? orderItem.cancellationReason
                           : orderItem?.orderStatus?.charAt(0).toUpperCase() + orderItem?.orderStatus?.slice(1)}
                       </Badge>
                     </TableCell>

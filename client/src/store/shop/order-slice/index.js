@@ -13,7 +13,10 @@ export const createNewOrder = createAsyncThunk(
   async (orderData) => {
     const response = await axios.post(
       "http://localhost:5000/api/shop/order/create",
-      orderData
+      orderData,
+      {
+        withCredentials: true, // Send cookies for authentication
+      }
     );
 
     return response.data;
@@ -22,10 +25,13 @@ export const createNewOrder = createAsyncThunk(
 
 export const getAllOrdersByUserId = createAsyncThunk(
   "/order/getAllOrdersByUserId",
-  async ({ userId, archived }) => {
+  async ({ archived }) => {
     const params = archived !== undefined ? `?archived=${archived}` : "";
     const response = await axios.get(
-      `http://localhost:5000/api/shop/order/list/${userId}${params}`
+      `http://localhost:5000/api/shop/order/list${params}`,
+      {
+        withCredentials: true, // Send cookies for authentication
+      }
     );
 
     return response.data;
@@ -36,7 +42,10 @@ export const getOrderDetails = createAsyncThunk(
   "/order/getOrderDetails",
   async (id) => {
     const response = await axios.get(
-      `http://localhost:5000/api/shop/order/details/${id}`
+      `http://localhost:5000/api/shop/order/details/${id}`,
+      {
+        withCredentials: true, // Send cookies for authentication
+      }
     );
 
     return response.data;
@@ -53,6 +62,7 @@ export const submitPaymentProof = createAsyncThunk(
       `http://localhost:5000/api/shop/order/submit-payment-proof/${id}`,
       formData,
       {
+        withCredentials: true, // Send cookies for authentication
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -65,11 +75,14 @@ export const submitPaymentProof = createAsyncThunk(
 
 export const cancelOrder = createAsyncThunk(
   "/order/cancelOrder",
-  async ({ id, userId }, { rejectWithValue }) => {
+  async ({ id }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
         `http://localhost:5000/api/shop/order/cancel/${id}`,
-        { userId }
+        {},
+        {
+          withCredentials: true, // Send cookies for authentication
+        }
       );
 
       return response.data;
@@ -87,10 +100,13 @@ export const cancelOrder = createAsyncThunk(
 
 export const archiveOrder = createAsyncThunk(
   "/order/archiveOrder",
-  async ({ id, userId }) => {
+  async ({ id }) => {
     const response = await axios.post(
       `http://localhost:5000/api/shop/order/archive/${id}`,
-      { userId }
+      {},
+      {
+        withCredentials: true, // Send cookies for authentication
+      }
     );
 
     return response.data;
@@ -99,10 +115,13 @@ export const archiveOrder = createAsyncThunk(
 
 export const unarchiveOrder = createAsyncThunk(
   "/order/unarchiveOrder",
-  async ({ id, userId }) => {
+  async ({ id }) => {
     const response = await axios.post(
       `http://localhost:5000/api/shop/order/unarchive/${id}`,
-      { userId }
+      {},
+      {
+        withCredentials: true, // Send cookies for authentication
+      }
     );
 
     return response.data;
@@ -111,11 +130,14 @@ export const unarchiveOrder = createAsyncThunk(
 
 export const restoreCancelledOrder = createAsyncThunk(
   "/order/restoreCancelledOrder",
-  async ({ id, userId }, { rejectWithValue }) => {
+  async ({ id }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
         `http://localhost:5000/api/shop/order/restore/${id}`,
-        { userId }
+        {},
+        {
+          withCredentials: true, // Send cookies for authentication
+        }
       );
 
       return response.data;
@@ -132,11 +154,14 @@ export const restoreCancelledOrder = createAsyncThunk(
 
 export const deleteCancelledOrder = createAsyncThunk(
   "/order/deleteCancelledOrder",
-  async ({ id, userId }, { rejectWithValue }) => {
+  async ({ id }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
         `http://localhost:5000/api/shop/order/delete/${id}`,
-        { userId }
+        {},
+        {
+          withCredentials: true, // Send cookies for authentication
+        }
       );
 
       return response.data;

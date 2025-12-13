@@ -97,7 +97,7 @@ function ShoppingCheckout() {
         // Show success animation briefly before navigating
         setTimeout(() => {
           // Clear cart by refetching (backend already cleared it)
-          dispatch(fetchCartItems(user?.id)).then(() => {
+          dispatch(fetchCartItems()).then(() => {
             navigate("/shop/payment-success", { state: { orderId: data?.payload?.orderId } });
           });
         }, 800);

@@ -38,4 +38,9 @@ const ProductSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Add indexes for frequently queried fields
+ProductSchema.index({ category: 1 });
+ProductSchema.index({ isArchived: 1 });
+ProductSchema.index({ category: 1, isArchived: 1 }); // Compound index for category filtering
+
 module.exports = mongoose.model("Product", ProductSchema);

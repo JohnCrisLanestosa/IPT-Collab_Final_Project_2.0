@@ -319,6 +319,8 @@ function ShoppingOrderDetailsView({ orderDetails }) {
                     ? "bg-purple-500 hover:bg-purple-600"
                     : orderDetails?.orderStatus === "pickedUp"
                     ? "bg-green-500 hover:bg-green-600"
+                    : orderDetails?.orderStatus === "cancelled"
+                    ? "bg-red-600 hover:bg-red-700"
                     : "bg-secondary hover:bg-accent text-foreground"
                 }`}
               >
@@ -326,10 +328,20 @@ function ShoppingOrderDetailsView({ orderDetails }) {
                   ? "Ready for Pickup"
                   : orderDetails?.orderStatus === "pickedUp"
                   ? "Picked up"
+                  : orderDetails?.orderStatus === "cancelled" && orderDetails?.cancellationReason
+                  ? orderDetails.cancellationReason
                   : orderDetails?.orderStatus?.charAt(0).toUpperCase() + orderDetails?.orderStatus?.slice(1)}
               </Badge>
             </Label>
           </div>
+          {orderDetails?.cancellationReason && (
+            <div className="flex mt-2 items-center justify-between gap-2">
+              <p className="font-medium text-red-600">Cancellation Reason</p>
+              <Label className="text-red-600 font-semibold">
+                {orderDetails.cancellationReason}
+              </Label>
+            </div>
+          )}
         </div>
         <Separator />
         
@@ -499,15 +511,18 @@ function ShoppingOrderDetailsView({ orderDetails }) {
                 )}
                 {isCancelled && (
                   <>
-                    <Button
-                      onClick={handleRestore}
-                      variant="secondary"
-                      className="w-full sm:w-auto flex items-center gap-2"
-                      disabled={isRestoring}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      {isRestoring ? "Restoring..." : "Restore Order"}
-                    </Button>
+                    {/* Only show restore button if order was not cancelled due to failure to pay */}
+                    {orderDetails?.cancellationReason !== "Cancelled due to failure to pay" && (
+                      <Button
+                        onClick={handleRestore}
+                        variant="secondary"
+                        className="w-full sm:w-auto flex items-center gap-2"
+                        disabled={isRestoring}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        {isRestoring ? "Restoring..." : "Restore Order"}
+                      </Button>
+                    )}
                     <Button
                       onClick={handleDelete}
                       variant="destructive"
@@ -518,7 +533,9 @@ function ShoppingOrderDetailsView({ orderDetails }) {
                       {isDeleting ? "Deleting..." : "Delete Permanently"}
                     </Button>
                     <p className="text-sm text-muted-foreground">
-                      Restoring moves the order back to your active list. Deleting removes it permanently.
+                      {orderDetails?.cancellationReason === "Cancelled due to failure to pay"
+                        ? "This order was cancelled due to failure to pay and cannot be restored."
+                        : "Restoring moves the order back to your active list. Deleting removes it permanently."}
                     </p>
                   </>
                 )}
