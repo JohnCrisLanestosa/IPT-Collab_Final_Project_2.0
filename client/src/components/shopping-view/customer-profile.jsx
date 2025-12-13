@@ -12,6 +12,7 @@ const customerProfileFormControls = [
     componentType: "input",
     type: "text",
     placeholder: "Enter your full name",
+    disabled: true, // Name is not editable
   },
   {
     label: "Email",
@@ -19,8 +20,7 @@ const customerProfileFormControls = [
     componentType: "input",
     type: "email",
     placeholder: "Enter your email",
-    disabled: true,
-    
+    disabled: true, // Email is not editable
   },
   {
     label: "Phone Number",
@@ -83,8 +83,15 @@ function CustomerProfile() {
   function handleSaveProfile(event) {
     event.preventDefault();
 
+    // Ensure name and email always come from user object (not editable)
+    const dataToSave = {
+      ...formData,
+      name: user?.userName || formData.name,
+      email: user?.email || formData.email,
+    };
+
     // Validate form
-    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
+    if (!dataToSave.name.trim() || !dataToSave.email.trim() || !dataToSave.phone.trim()) {
       toast({
         title: "Please fill in all customer information fields",
         variant: "destructive",
@@ -94,7 +101,7 @@ function CustomerProfile() {
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!emailRegex.test(dataToSave.email)) {
       toast({
         title: "Please enter a valid email address",
         variant: "destructive",
@@ -103,7 +110,7 @@ function CustomerProfile() {
     }
 
     // Phone validation (basic)
-    if (formData.phone.trim().length < 10) {
+    if (dataToSave.phone.trim().length < 10) {
       toast({
         title: "Please enter a valid phone number",
         variant: "destructive",
@@ -113,15 +120,17 @@ function CustomerProfile() {
 
     // Save data to localStorage (since User model doesn't have these fields yet)
     if (user?.id) {
-      localStorage.setItem(`customer_phone_${user.id}`, formData.phone);
-      if (formData.gender) {
-        localStorage.setItem(`customer_gender_${user.id}`, formData.gender);
+      localStorage.setItem(`customer_phone_${user.id}`, dataToSave.phone);
+      if (dataToSave.gender) {
+        localStorage.setItem(`customer_gender_${user.id}`, dataToSave.gender);
       }
-      if (formData.dateOfBirth) {
-        localStorage.setItem(`customer_dateOfBirth_${user.id}`, formData.dateOfBirth);
+      if (dataToSave.dateOfBirth) {
+        localStorage.setItem(`customer_dateOfBirth_${user.id}`, dataToSave.dateOfBirth);
       }
     }
 
+    // Update formData with the saved data (including name and email from user)
+    setFormData(dataToSave);
     setIsEditing(false);
     toast({
       title: "Customer information saved successfully!",
