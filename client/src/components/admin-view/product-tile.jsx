@@ -8,6 +8,7 @@ function AdminProductTile({
   handleEdit,
   handleArchive,
   handleUnarchive,
+  handleViewReviews,
   currentUser,
 }) {
   const isArchived = product?.isArchived;
@@ -20,7 +21,11 @@ function AdminProductTile({
   return (
     <Card className={`w-full max-w-sm mx-auto hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 ease-in-out ${shouldGrayOut ? 'grayscale opacity-75' : ''}`}>
       <div>
-        <div className="relative overflow-hidden">
+        <div 
+          className="relative overflow-hidden cursor-pointer"
+          onClick={() => handleViewReviews && handleViewReviews(product)}
+          title="Click to view reviews"
+        >
           <img
             src={product?.image}
             alt={product?.title}
@@ -58,7 +63,13 @@ function AdminProductTile({
           )}
         </div>
         <CardContent className="p-3">
-          <h2 className={`text-base font-bold mb-1 mt-1 line-clamp-2 ${shouldGrayOut ? 'text-gray-600' : ''}`}>{product?.title}</h2>
+          <h2 
+            className={`text-base font-bold mb-1 mt-1 line-clamp-2 cursor-pointer hover:text-primary transition-colors ${shouldGrayOut ? 'text-gray-600' : ''}`}
+            onClick={() => handleViewReviews && handleViewReviews(product)}
+            title="Click to view reviews"
+          >
+            {product?.title}
+          </h2>
           <div className="flex justify-between items-center mb-2">
             <span className={`text-lg font-semibold ${shouldGrayOut ? 'text-gray-600' : 'text-primary'}`}>
               ₱{product?.price}

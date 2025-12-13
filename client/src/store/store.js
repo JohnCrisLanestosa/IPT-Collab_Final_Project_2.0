@@ -3,6 +3,7 @@ import authReducer from "./auth-slice";
 import adminProductsSlice from "./admin/products-slice";
 import adminOrderSlice from "./admin/order-slice";
 import adminProfileSlice from "./admin/profile-slice";
+import adminReviewSlice from "./admin/review-slice";
 import superAdminSlice from "./superadmin/admin-slice";
 import superAdminReportSlice from "./superadmin/report-slice";
 import activitySlice from "./superadmin/activity-slice";
@@ -23,6 +24,7 @@ const store = configureStore({
     adminProducts: adminProductsSlice,
     adminOrder: adminOrderSlice,
     adminProfile: adminProfileSlice,
+    adminReview: adminReviewSlice,
     superAdmin: superAdminSlice,
     superAdminReports: superAdminReportSlice,
     activity: activitySlice,

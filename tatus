@@ -1,0 +1,8 @@
+[33mcd56e79[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Fixed the daily, weekly, and montly sales report. The sale will be based on the day the customer paid the order not the day they orderd it.
+[33m41bd4a8[m removed deadlines on the orders that are ready to pick up
+[33m95706e1[m Disabled edit on customer's name on their profile
+[33m0d32858[m disabled edit option on customers name and email.
+[33m0bb8e0c[m removed archive option on the cancelled orders on the admin side
+[33m69a7214[m Added archive button on the completd order
+[33m2d19d8c[m Fixed the order cancellation and realtime updates on the orders
+[33mdb7a2dd[m Fixed calendar, it will display the deadlines

@@ -1,5 +1,6 @@
 import ProductImageUpload from "@/components/admin-view/image-upload";
 import AdminProductTile from "@/components/admin-view/product-tile";
+import ProductReviewsDialog from "@/components/admin-view/product-reviews-dialog";
 import CommonForm from "@/components/common/form";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,8 @@ function AdminProducts() {
   const [openCreateProductsDialog, setOpenCreateProductsDialog] =
     useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [showProductReviewsDialog, setShowProductReviewsDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [formData, setFormData] = useState(initialFormData);
   const [imageFile, setImageFile] = useState(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
@@ -243,6 +246,11 @@ function AdminProducts() {
     setFormData(initialFormData);
   }
 
+  function handleViewReviews(product) {
+    setSelectedProduct(product);
+    setShowProductReviewsDialog(true);
+  }
+
   function isFormValid() {
     return Object.keys(formData)
       .filter((currentKey) => currentKey !== "averageReview")
@@ -312,6 +320,7 @@ function AdminProducts() {
                 product={productItem}
                 handleArchive={handleArchive}
                 handleUnarchive={handleUnarchive}
+                handleViewReviews={handleViewReviews}
                 currentUser={user}
               />
             ))
@@ -442,6 +451,13 @@ function AdminProducts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Product Reviews Dialog */}
+      <ProductReviewsDialog
+        open={showProductReviewsDialog}
+        onOpenChange={setShowProductReviewsDialog}
+        product={selectedProduct}
+      />
     </Fragment>
   );
 }

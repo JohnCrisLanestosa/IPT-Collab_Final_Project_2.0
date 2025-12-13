@@ -42,11 +42,14 @@ const addProductReview = async (req, res) => {
 
     await newReview.save();
 
-    const reviews = await Review.find({ productId });
-    const totalReviewsLength = reviews.length;
+    // Calculate average review excluding hidden reviews
+    const visibleReviews = await Review.find({ productId, isHidden: false });
+    const totalReviewsLength = visibleReviews.length;
     const averageReview =
-      reviews.reduce((sum, reviewItem) => sum + reviewItem.reviewValue, 0) /
-      totalReviewsLength;
+      totalReviewsLength > 0
+        ? visibleReviews.reduce((sum, reviewItem) => sum + reviewItem.reviewValue, 0) /
+          totalReviewsLength
+        : 0;
 
     await Product.findByIdAndUpdate(productId, { averageReview });
 
@@ -67,7 +70,8 @@ const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    const reviews = await Review.find({ productId });
+    // Only return reviews that are not hidden (for customer-facing views)
+    const reviews = await Review.find({ productId, isHidden: false }).sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       data: reviews,
