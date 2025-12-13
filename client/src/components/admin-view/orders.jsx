@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Dialog } from "../ui/dialog";
+import { Dialog, DialogContent } from "../ui/dialog";
 import {
   Table,
   TableBody,
@@ -16,6 +16,7 @@ import {
   getAllOrdersForAdmin,
   getOrderDetailsForAdmin,
   resetOrderDetails,
+  archiveOrder,
 } from "@/store/admin/order-slice";
 import { Badge } from "../ui/badge";
 import { ArrowLeft, Trash2, Clock, AlertTriangle, Archive } from "lucide-react";
@@ -24,6 +25,9 @@ import { useToast } from "../ui/use-toast";
 
 function AdminOrdersView() {
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
+  const [openArchiveDialog, setOpenArchiveDialog] = useState(false);
+  const [orderToArchive, setOrderToArchive] = useState(null);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [viewMode, setViewMode] = useState("all"); // "all", "cancelled", "archive"
   const { orderList, orderDetails } = useSelector((state) => state.adminOrder);
   const dispatch = useDispatch();
@@ -123,6 +127,48 @@ function AdminOrdersView() {
     return { deadline, hoursRemaining, isExpired, isUrgent, isWarning };
   };
 
+  // Check if order can be archived (pickedUp orders - these are successful/completed orders)
+  const canArchiveOrder = (order) => {
+    return order?.orderStatus === "pickedUp" && !order?.isArchived;
+  };
+
+  const handleArchiveClick = (order) => {
+    setOrderToArchive(order);
+    setOpenArchiveDialog(true);
+  };
+
+  const handleArchiveConfirm = async () => {
+    if (!orderToArchive) return;
+
+    setIsArchiving(true);
+    try {
+      const result = await dispatch(archiveOrder(orderToArchive._id)).unwrap();
+      
+      if (result.success) {
+        toast({
+          title: "Order Archived",
+          description: result.message || "The order has been archived successfully.",
+          variant: "success",
+        });
+        
+        // Refresh the order list based on current view mode
+        const archivedParam = viewMode === "cancelled" ? "true" : viewMode === "archive" ? "archive" : "false";
+        dispatch(getAllOrdersForAdmin(archivedParam));
+        
+        setOpenArchiveDialog(false);
+        setOrderToArchive(null);
+      }
+    } catch (error) {
+      toast({
+        title: "Archive Failed",
+        description: error?.message || "Failed to archive the order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
 
   return (
     <Card>
@@ -188,9 +234,7 @@ function AdminOrdersView() {
               <TableHead>Payment Deadline</TableHead>
               <TableHead>Order Price</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>
-                <span className="sr-only">Details</span>
-              </TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -304,22 +348,37 @@ function AdminOrdersView() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Dialog
-                        open={openDetailsDialog}
-                        onOpenChange={() => {
-                          setOpenDetailsDialog(false);
-                          dispatch(resetOrderDetails());
-                        }}
-                      >
-                        <Button
-                          onClick={() =>
-                            handleFetchOrderDetails(orderItem?._id)
-                          }
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Dialog
+                          open={openDetailsDialog}
+                          onOpenChange={() => {
+                            setOpenDetailsDialog(false);
+                            dispatch(resetOrderDetails());
+                          }}
                         >
-                          View Details
-                        </Button>
-                        <AdminOrderDetailsView orderDetails={orderDetails} />
-                      </Dialog>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleFetchOrderDetails(orderItem?._id)
+                            }
+                          >
+                            View Details
+                          </Button>
+                          <AdminOrderDetailsView orderDetails={orderDetails} />
+                        </Dialog>
+                        {canArchiveOrder(orderItem) && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleArchiveClick(orderItem)}
+                            className="flex items-center gap-2"
+                          >
+                            <Archive className="h-4 w-4" />
+                            Archive
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                   );
@@ -328,6 +387,63 @@ function AdminOrdersView() {
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Archive Confirmation Dialog */}
+      <Dialog open={openArchiveDialog} onOpenChange={setOpenArchiveDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <h3 className="text-lg font-semibold">Archive Order</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to archive this order? Archived orders will be moved to the archive section and will no longer appear in the main orders list.
+              </p>
+              <div className="mt-2 p-3 bg-secondary/10 rounded-lg">
+                <p className="text-sm">
+                  <strong>Order ID:</strong> {orderToArchive?._id}
+                </p>
+                <p className="text-sm">
+                  <strong>Order Status:</strong> {orderToArchive?.orderStatus === "pickedUp" ? "Picked Up" : orderToArchive?.orderStatus}
+                </p>
+                <p className="text-sm">
+                  <strong>Payment Status:</strong> {orderToArchive?.paymentStatus}
+                </p>
+                <p className="text-sm">
+                  <strong>Total Amount:</strong> ₱{orderToArchive?.totalAmount}
+                </p>
+              </div>
+              <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
+                  ⚠️ Warning: This action will move the order to the archive. You can unarchive it later if needed.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOpenArchiveDialog(false);
+                  setOrderToArchive(null);
+                }}
+                disabled={isArchiving}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleArchiveConfirm}
+                disabled={isArchiving}
+                className="flex items-center gap-2"
+              >
+                <Archive className="h-4 w-4" />
+                {isArchiving ? "Archiving..." : "Yes, Archive Order"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
