@@ -283,6 +283,11 @@ const updateOrderStatus = async (req, res) => {
       }
     }
 
+    // Remove payment deadline when order is marked as ready for pickup
+    if (orderStatus === "readyForPickup") {
+      updateData.paymentDeadline = null;
+    }
+
     // Automatically mark payment as paid only when the order is picked up
     if (orderStatus === "pickedUp") {
       updateData.paymentStatus = "paid";

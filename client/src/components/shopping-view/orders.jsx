@@ -93,6 +93,10 @@ function ShoppingOrders() {
 
   // Calculate payment deadline status for an order
   const getPaymentDeadlineStatus = (order) => {
+    // Don't show deadline for readyForPickup or pickedUp orders
+    if (order?.orderStatus === "readyForPickup" || order?.orderStatus === "pickedUp") {
+      return null;
+    }
     if (!order?.paymentDeadline || order?.paymentStatus !== "pending") return null;
     
     const deadline = new Date(order.paymentDeadline);

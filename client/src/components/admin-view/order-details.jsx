@@ -136,6 +136,10 @@ function AdminOrderDetailsView({ orderDetails }) {
 
   // Calculate payment deadline status
   const getPaymentDeadlineInfo = () => {
+    // Don't show deadline for readyForPickup or pickedUp orders
+    if (orderDetails?.orderStatus === "readyForPickup" || orderDetails?.orderStatus === "pickedUp") {
+      return null;
+    }
     // Payment deadline only exists after admin confirms the order
     // If paymentDeadline exists, use it; otherwise deadline hasn't started yet
     let deadline;
