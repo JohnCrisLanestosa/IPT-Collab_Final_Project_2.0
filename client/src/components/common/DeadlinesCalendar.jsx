@@ -125,16 +125,16 @@ function CalendarGrid({ deadlines, currentMonth, onDateClick, selectedDate }) {
   return (
     <div className="w-full">
       {/* Days of week header */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-1 mb-1 lg:mb-2">
         {daysOfWeek.map(day => (
-          <div key={day} className="text-center text-xs font-semibold text-muted-foreground py-1">
+          <div key={day} className="text-center text-[10px] lg:text-xs font-semibold text-muted-foreground py-0.5 lg:py-1">
             {day}
           </div>
         ))}
       </div>
       
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-1">
         {calendarDays.map((day, index) => {
           if (day === null) {
             return <div key={`empty-${index}`} className="aspect-square" />;
@@ -166,22 +166,22 @@ function CalendarGrid({ deadlines, currentMonth, onDateClick, selectedDate }) {
               key={day}
               onClick={() => onDateClick(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
               className={`
-                min-h-[80px] rounded-md text-sm font-medium transition-all
+                min-h-[60px] lg:min-h-[80px] rounded-md text-xs lg:text-sm font-medium transition-all
                 hover:ring-2 hover:ring-primary hover:ring-offset-1
                 ${todayClass}
                 ${selectedClass}
                 ${dateDeadlines.length > 0 ? "font-bold bg-red-800 dark:bg-red-900" : ""}
-                relative flex flex-col items-center justify-start p-1.5 gap-0.5
+                relative flex flex-col items-center justify-start p-1 lg:p-1.5 gap-0.5
               `}
               style={status ? { backgroundColor: status.color } : {}}
             >
-              <div className={`text-sm font-bold mb-0.5 ${dateDeadlines.length > 0 ? "text-white" : status ? "text-white" : "text-gray-900 dark:text-gray-100"}`}>{day}</div>
+              <div className={`text-xs lg:text-sm font-bold mb-0.5 ${dateDeadlines.length > 0 ? "text-white" : status ? "text-white" : "text-gray-900 dark:text-gray-100"}`}>{day}</div>
               {dateDeadlines.length > 0 && (
-                <div className="flex flex-col gap-0.5 w-full text-[9px] leading-tight overflow-hidden">
+                <div className="flex flex-col gap-0.5 w-full text-[8px] lg:text-[9px] leading-tight overflow-hidden">
                   {dateDeadlines.slice(0, 2).map((deadline, idx) => (
                     <div 
                       key={idx} 
-                      className={`truncate px-1 py-0.5 rounded font-semibold ${
+                      className={`truncate px-0.5 lg:px-1 py-0.5 rounded font-semibold ${
                         status 
                           ? "bg-white/30 text-white shadow-sm" 
                           : "bg-white/20 text-white dark:bg-white/25 shadow-sm"
@@ -192,7 +192,7 @@ function CalendarGrid({ deadlines, currentMonth, onDateClick, selectedDate }) {
                     </div>
                   ))}
                   {dateDeadlines.length > 2 && (
-                    <div className={`text-[8px] px-1 font-semibold text-white`}>
+                    <div className={`text-[7px] lg:text-[8px] px-0.5 lg:px-1 font-semibold text-white`}>
                       +{dateDeadlines.length - 2} more
                     </div>
                   )}
@@ -388,23 +388,23 @@ export default function DeadlinesCalendar() {
             <p>Payment Deadlines ({upcomingDeadlines.length} upcoming)</p>
           </TooltipContent>
         </Tooltip>
-        <DropdownMenuContent side="bottom" align="end" className="w-[800px] max-h-[700px] overflow-hidden flex flex-col p-0 bg-white dark:bg-gray-900">
+        <DropdownMenuContent side="bottom" align="end" className="w-[calc(100vw-2rem)] max-w-[800px] max-h-[calc(100vh-8rem)] lg:max-h-[700px] overflow-hidden flex flex-col p-0 bg-white dark:bg-gray-900">
           {/* Google Calendar-style Header */}
-          <div className="px-4 py-3 border-b bg-white dark:bg-gray-900 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                  <CalendarIcon className="h-5 w-5 text-white" />
+          <div className="px-3 py-2 lg:px-4 lg:py-3 border-b bg-white dark:bg-gray-900 flex items-center justify-between">
+            <div className="flex items-center gap-2 lg:gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 lg:gap-2">
+                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                  <CalendarIcon className="h-3 w-3 lg:h-5 lg:w-5 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">Payment Deadlines</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">BukSu EEU</p>
+                <div className="min-w-0">
+                  <h3 className="text-xs lg:text-sm font-medium text-gray-900 dark:text-white truncate">Payment Deadlines</h3>
+                  <p className="text-[10px] lg:text-xs text-gray-500 dark:text-gray-400 truncate">BukSu EEU</p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
               {upcomingDeadlines.length > 0 && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-[10px] lg:text-xs">
                   {upcomingDeadlines.length} upcoming
                 </Badge>
               )}
@@ -412,7 +412,7 @@ export default function DeadlinesCalendar() {
           </div>
           
           {/* Local Calendar View */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white dark:bg-gray-900 p-4">
+          <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white dark:bg-gray-900 p-2 lg:p-4">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-sm text-muted-foreground">Loading calendar...</div>
@@ -425,26 +425,26 @@ export default function DeadlinesCalendar() {
             ) : (
               <div className="space-y-4">
                 {/* Calendar Navigation */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-2 lg:mb-4">
                   <button
                     onClick={goToPreviousMonth}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                    className="p-1.5 lg:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-sm lg:text-base"
                   >
                     ←
                   </button>
-                  <h3 className="text-lg font-semibold">
+                  <h3 className="text-sm lg:text-lg font-semibold text-center flex-1 px-2">
                     {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </h3>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 lg:gap-2">
                     <button
                       onClick={goToToday}
-                      className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md"
+                      className="px-2 py-1 lg:px-3 lg:py-1 text-xs lg:text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md"
                     >
                       Today
                     </button>
                     <button
                       onClick={goToNextMonth}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                      className="p-1.5 lg:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-sm lg:text-base"
                     >
                       →
                     </button>
@@ -461,43 +461,43 @@ export default function DeadlinesCalendar() {
 
                 {/* Selected Date Details */}
                 {selectedDate && selectedDateDeadlines.length > 0 && (
-                  <div ref={selectedDateRef} className="mt-6 pt-4 border-t">
-                    <h4 className="text-sm font-semibold mb-3">
+                  <div ref={selectedDateRef} className="mt-4 lg:mt-6 pt-3 lg:pt-4 border-t">
+                    <h4 className="text-xs lg:text-sm font-semibold mb-2 lg:mb-3">
                       {selectedDate.toLocaleDateString('en-US', { 
                         weekday: 'long', 
                         month: 'long', 
                         day: 'numeric' 
                       })}
                     </h4>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5 lg:space-y-2">
                       {selectedDateDeadlines.map((d) => {
                         const { status, color } = getDeadlineStatus(d.deadline);
                         return (
                           <div
                             key={d.orderId}
-                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                            className="p-2 lg:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                             onClick={() => {
                               navigate(`/shop/account?tab=orders`);
                               setCalendarOpen(false);
                             }}
                           >
-                            <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start justify-between gap-1.5 lg:gap-2">
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
+                                <p className="text-xs lg:text-sm font-medium truncate">
                                   {d.title}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-[10px] lg:text-xs text-muted-foreground">
                                   Order ID: {d.orderId.substring(0, 8)}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-[10px] lg:text-xs text-muted-foreground">
                                   Amount: ₱{d.totalAmount}
                                 </p>
                               </div>
-                              <div className="flex flex-col items-end gap-1">
-                                <Badge variant={color} className="text-xs">
+                              <div className="flex flex-col items-end gap-0.5 lg:gap-1 flex-shrink-0">
+                                <Badge variant={color} className="text-[10px] lg:text-xs">
                                   {timeUntil(d.deadline)}
                                 </Badge>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-[10px] lg:text-xs text-muted-foreground">
                                   {new Date(d.deadline).toLocaleTimeString('en-US', {
                                     hour: '2-digit',
                                     minute: '2-digit'
