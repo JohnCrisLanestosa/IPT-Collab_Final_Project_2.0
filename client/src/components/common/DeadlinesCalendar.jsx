@@ -372,11 +372,11 @@ export default function DeadlinesCalendar() {
               <Button 
                 variant="outline" 
                 size="icon" 
-                className="relative bg-secondary hover:bg-accent border-secondary text-foreground"
+                className="h-8 w-8 relative bg-secondary hover:bg-accent border-secondary text-foreground lg:h-10 lg:w-10"
               >
-                <CalendarIcon className="w-6 h-6" />
+                <CalendarIcon className="w-4 h-4 lg:w-6 lg:h-6" />
                 {upcomingDeadlines.length > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white">
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 lg:h-5 lg:w-5 flex items-center justify-center p-0 text-[10px] lg:text-xs bg-red-500 text-white">
                     {upcomingDeadlines.length > 9 ? "9+" : upcomingDeadlines.length}
                   </Badge>
                 )}

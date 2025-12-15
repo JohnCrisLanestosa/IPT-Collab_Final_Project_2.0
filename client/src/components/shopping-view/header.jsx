@@ -123,7 +123,7 @@ function MenuItems() {
   );
 }
 
-function DrawerMenuItems() {
+function DrawerMenuItems({ setOpen }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -148,11 +148,18 @@ function DrawerMenuItems() {
 
     sessionStorage.setItem("filters", JSON.stringify(currentFilter));
 
-    location.pathname.includes("listing") && currentFilter !== null
-      ? setSearchParams(
-          new URLSearchParams(`?category=${getCurrentMenuItem.id}`)
-        )
-      : navigate(getCurrentMenuItem.path);
+    if (location.pathname.includes("listing") && currentFilter !== null) {
+      setSearchParams(
+        new URLSearchParams(`?category=${getCurrentMenuItem.id}`)
+      );
+    } else {
+      navigate(getCurrentMenuItem.path);
+    }
+
+    // Close the sidebar after navigation
+    if (setOpen) {
+      setOpen(false);
+    }
   }
 
   return (
@@ -204,10 +211,10 @@ function CartButton() {
               onClick={() => setOpenCartSheet(true)}
               variant="outline"
               size="icon"
-              className="relative bg-secondary hover:bg-accent border-secondary text-foreground"
+              className="h-8 w-8 relative bg-secondary hover:bg-accent border-secondary text-foreground lg:h-10 lg:w-10"
             >
-              <ShoppingCart className="w-6 h-6" />
-              <span className="absolute top-[-5px] right-[2px] font-bold text-sm bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+              <ShoppingCart className="w-4 h-4 lg:w-6 lg:h-6" />
+              <span className="absolute top-[-4px] right-[1px] font-bold text-[10px] lg:text-sm bg-red-500 text-white rounded-full w-4 h-4 lg:w-5 lg:h-5 flex items-center justify-center lg:text-xs">
                 {cartItems?.length || 0}
               </span>
               <span className="sr-only">User cart</span>
@@ -286,11 +293,11 @@ function NotificationDropdown() {
             <Button
               variant="outline"
               size="icon"
-              className="relative bg-secondary hover:bg-accent border-secondary text-foreground"
+              className="h-8 w-8 relative bg-secondary hover:bg-accent border-secondary text-foreground lg:h-10 lg:w-10"
             >
-              <Bell className="w-6 h-6" />
+              <Bell className="w-4 h-4 lg:w-6 lg:h-6" />
               {unreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white">
+                <Badge className="absolute -top-1 -right-1 h-4 w-4 lg:h-5 lg:w-5 flex items-center justify-center p-0 text-[10px] lg:text-xs bg-red-500 text-white">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </Badge>
               )}
@@ -458,17 +465,18 @@ function MobileHeaderActions() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <NotificationDropdown />
+        <DeadlinesCalendar />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               onClick={() => navigate("/shop/search")}
               variant="outline"
               size="icon"
-              className="bg-secondary hover:bg-accent border-secondary text-foreground"
+              className="h-8 w-8 bg-secondary hover:bg-accent border-secondary text-foreground"
             >
-              <Search className="w-6 h-6" />
+              <Search className="w-4 h-4" />
               <span className="sr-only">Search</span>
             </Button>
           </TooltipTrigger>
@@ -482,9 +490,9 @@ function MobileHeaderActions() {
               onClick={() => navigate("/shop/account?tab=orders")}
               variant="outline"
               size="icon"
-              className="bg-secondary hover:bg-accent border-secondary text-foreground"
+              className="h-8 w-8 bg-secondary hover:bg-accent border-secondary text-foreground"
             >
-              <Package className="w-6 h-6" />
+              <Package className="w-4 h-4" />
               <span className="sr-only">Orders</span>
             </Button>
           </TooltipTrigger>
@@ -551,6 +559,7 @@ function MobileDrawerContent() {
 
 function ShoppingHeader() {
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const [openMobileMenu, setOpenMobileMenu] = useState(false);
 
   return (
     <header className="fixed top-0 z-40 w-full border-b bg-gradient-to-r from-[#0a1f3f] via-[#0b2752] to-[#0c2f65] dark:from-primary dark:via-secondary/30 dark:to-primary shadow-lg">
@@ -569,18 +578,18 @@ function ShoppingHeader() {
         </Link>
         
         {/* Mobile: Search, Cart, and Hamburger menu grouped together */}
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex items-center gap-1.5 lg:hidden">
           <MobileHeaderActions />
-          <Sheet>
+          <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="bg-secondary hover:bg-accent border-secondary text-foreground">
-                <Menu className="h-6 w-6" />
+              <Button variant="outline" size="icon" className="h-8 w-8 bg-secondary hover:bg-accent border-secondary text-foreground">
+                <Menu className="h-4 w-4" />
                 <span className="sr-only">Toggle header menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-full max-w-xs">
               <MobileProfileSection />
-              <DrawerMenuItems />
+              <DrawerMenuItems setOpen={setOpenMobileMenu} />
               <MobileDrawerContent />
             </SheetContent>
           </Sheet>
