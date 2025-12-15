@@ -20,7 +20,7 @@ import {
 } from "@/store/shop/order-slice";
 import { Badge } from "../ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Receipt, Trash2, X, Clock, AlertTriangle } from "lucide-react";
+import { Receipt, Trash2, X, Clock, AlertTriangle, ArrowLeft } from "lucide-react";
 import ShoppingRecycleBin from "./recycle-bin";
 import { useToast } from "../ui/use-toast";
 
@@ -127,37 +127,122 @@ function ShoppingOrders() {
 
   console.log(orderDetails, "orderDetails");
 
-  // Filter out picked up and cancelled orders - they should only appear in purchase history
-  const activeOrders = orderList?.filter(
-    (order) => order.orderStatus !== "pickedUp" && order.orderStatus !== "cancelled"
-  ) || [];
+  const activeOrders =
+    orderList?.filter(
+      (order) =>
+        order.orderStatus !== "pickedUp" && order.orderStatus !== "cancelled"
+    ) || [];
 
-  if (showCancelled) {
-    return <ShoppingRecycleBin onBack={() => setShowCancelled(false)} />;
-  }
+  const cancelledOrders =
+    orderList?.filter((order) => order.orderStatus === "cancelled") || [];
+
+  const getPrimaryItem = (order) => {
+    const firstItem = order?.cartItems?.[0];
+    return {
+      image: firstItem?.image,
+      title: firstItem?.title || "Item",
+    };
+  };
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <CardTitle>Order History</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Track active orders. Cancelled orders move to your recycle bin.
-            </p>
-          </div>
+        <div className="flex items-center justify-between">
+          <CardTitle>{showCancelled ? "Cancelled Orders" : "Order History"}</CardTitle>
           <Button
-            variant="outline"
+            variant={showCancelled ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowCancelled(!showCancelled)}
             className="flex items-center gap-2"
-            onClick={() => setShowCancelled(true)}
           >
-            <Trash2 className="h-4 w-4" />
-            View Cancelled Orders
+            {showCancelled ? (
+              <>
+                <ArrowLeft className="h-4 w-4" />
+                Back to Orders
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                View Cancelled
+              </>
+            )}
           </Button>
         </div>
+        {!showCancelled && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Track active orders. Cancelled orders move to your recycle bin.
+          </p>
+        )}
       </CardHeader>
       <CardContent>
-        {activeOrders.length === 0 ? (
+        {showCancelled ? (
+          cancelledOrders.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground space-y-2">
+              <p>No cancelled orders yet.</p>
+              <p className="text-sm">Orders that you cancel will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {cancelledOrders.map((order) => (
+                <div
+                  key={order._id}
+                  className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden flex items-center justify-center">
+                        {getPrimaryItem(order).image ? (
+                          <img
+                            src={getPrimaryItem(order).image}
+                            alt={getPrimaryItem(order).title}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-sm font-semibold text-muted-foreground">
+                            {getPrimaryItem(order).title?.charAt(0)?.toUpperCase() || "P"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="font-medium">Order ID:</span>
+                          <span className="font-semibold break-all">{order._id}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {getPrimaryItem(order).title}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {order.cancellationReason && (
+                        <Badge className="bg-red-600 hover:bg-red-700 text-white">
+                          {order.cancellationReason}
+                        </Badge>
+                      )}
+                      <span className="text-lg font-bold text-primary">
+                        ₱{order.totalAmount}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>Cancelled on:</span>
+                      <span>{order.orderUpdateDate?.split("T")[0] || order.orderDate?.split("T")[0]}</span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFetchOrderDetails(order._id)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : activeOrders.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p>No active orders found.</p>
             <p className="text-sm mt-2">
@@ -165,19 +250,46 @@ function ShoppingOrders() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="space-y-3 md:hidden">
-              {activeOrders.map((orderItem) => {
-                const deadlineStatus = getPaymentDeadlineStatus(orderItem);
-                return (
-                  <div key={orderItem?._id} className="rounded-lg border p-3 bg-card shadow-sm">
-                    <div className="text-xs text-muted-foreground break-all">
-                      Order ID: {orderItem?._id}
+          <div className="space-y-6">
+            {activeOrders.map((orderItem) => {
+              const deadlineStatus = getPaymentDeadlineStatus(orderItem);
+              return (
+                <div
+                  key={orderItem?._id}
+                  className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden flex items-center justify-center">
+                        {getPrimaryItem(orderItem).image ? (
+                          <img
+                            src={getPrimaryItem(orderItem).image}
+                            alt={getPrimaryItem(orderItem).title}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-sm font-semibold text-muted-foreground">
+                            {getPrimaryItem(orderItem).title?.charAt(0)?.toUpperCase() || "P"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="font-medium">Order ID:</span>
+                          <span className="font-semibold break-all">
+                            {orderItem?._id?.slice(-8)?.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {getPrimaryItem(orderItem).title}
+                        </p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>Placed on:</span>
+                          <span>{orderItem?.orderDate.split("T")[0]}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-1 text-sm font-semibold">
-                      {orderItem?.orderDate.split("T")[0]}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge
                         className={`py-1 px-3 ${
                           orderItem?.orderStatus === "pending"
@@ -199,32 +311,30 @@ function ShoppingOrders() {
                           ? "Picked up"
                           : orderItem?.orderStatus === "cancelled" && orderItem?.cancellationReason
                           ? orderItem.cancellationReason
-                          : orderItem?.orderStatus?.charAt(0).toUpperCase() + orderItem?.orderStatus?.slice(1)}
+                          : orderItem?.orderStatus?.charAt(0).toUpperCase() +
+                            orderItem?.orderStatus?.slice(1)}
                       </Badge>
-                      <Badge
-                        className={`py-1 px-3 ${
-                          orderItem?.paymentStatus === "paid"
-                            ? "bg-green-500 hover:bg-green-600"
-                            : orderItem?.paymentStatus === "failed"
-                            ? "bg-red-600 hover:bg-red-700"
-                            : "bg-yellow-500 hover:bg-yellow-600"
-                        }`}
-                      >
-                        {orderItem?.paymentStatus}
-                      </Badge>
+                      <span className="text-lg font-bold text-primary">
+                        ₱{orderItem?.totalAmount}
+                      </span>
                     </div>
-                    <div className="mt-2 text-sm">
-                      <span className="font-semibold">Payment Deadline: </span>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">Payment Deadline:</span>
                       {deadlineStatus ? (
-                        <span className={`inline-flex items-center gap-1 ${
-                          deadlineStatus.isExpired
-                            ? "text-red-600 font-semibold"
-                            : deadlineStatus.isUrgent
-                            ? "text-orange-600 font-semibold"
-                            : deadlineStatus.isWarning
-                            ? "text-yellow-600 font-semibold"
-                            : "text-muted-foreground"
-                        }`}>
+                        <span
+                          className={`inline-flex items-center gap-1 ${
+                            deadlineStatus.isExpired
+                              ? "text-red-600 font-semibold"
+                              : deadlineStatus.isUrgent
+                              ? "text-orange-600 font-semibold"
+                              : deadlineStatus.isWarning
+                              ? "text-yellow-600 font-semibold"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           <Clock className="h-4 w-4" />
                           {deadlineStatus.isExpired
                             ? "Expired"
@@ -236,188 +346,49 @@ function ShoppingOrders() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </div>
-                    <div className="mt-2 text-sm font-semibold">
-                      Total: ₱{orderItem?.totalAmount}
-                    </div>
-                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleFetchOrderDetails(orderItem?._id)}
-                      >
-                        View Details
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewPayment(orderItem?._id)}
-                      >
-                        <Receipt className="h-4 w-4 mr-1" />
-                        Receipt
-                      </Button>
-                      {canCancelOrder(orderItem?.orderStatus) && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCancelOrder(orderItem?._id)}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Cancel Order
-                        </Button>
-                      )}
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Order Status</TableHead>
-                    <TableHead>Payment Status</TableHead>
-                    <TableHead>Payment Deadline</TableHead>
-                    <TableHead>Order Price</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeOrders.map((orderItem) => {
-                    const deadlineStatus = getPaymentDeadlineStatus(orderItem);
-                    return (
-                      <TableRow key={orderItem?._id}>
-                        <TableCell>{orderItem?._id}</TableCell>
-                        <TableCell>{orderItem?.orderDate.split("T")[0]}</TableCell>
-                        <TableCell>
-                          <Badge
-                            className={`py-1 px-3 ${
-                              orderItem?.orderStatus === "pending"
-                                ? "bg-yellow-500 hover:bg-yellow-600"
-                                : orderItem?.orderStatus === "confirmed"
-                                ? "bg-blue-500 hover:bg-blue-600"
-                                : orderItem?.orderStatus === "readyForPickup"
-                                ? "bg-purple-500 hover:bg-purple-600"
-                                : orderItem?.orderStatus === "pickedUp"
-                                ? "bg-green-500 hover:bg-green-600"
-                                : orderItem?.orderStatus === "cancelled"
-                                ? "bg-red-600 hover:bg-red-700"
-                                : "bg-secondary hover:bg-accent text-foreground"
-                            }`}
-                          >
-                            {orderItem?.orderStatus === "readyForPickup"
-                              ? "Ready for Pickup"
-                              : orderItem?.orderStatus === "pickedUp"
-                              ? "Picked up"
-                              : orderItem?.orderStatus === "cancelled" && orderItem?.cancellationReason
-                              ? orderItem.cancellationReason
-                              : orderItem?.orderStatus?.charAt(0).toUpperCase() + orderItem?.orderStatus?.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={`py-1 px-3 ${
-                              orderItem?.paymentStatus === "paid"
-                                ? "bg-green-500 hover:bg-green-600"
-                                : orderItem?.paymentStatus === "failed"
-                                ? "bg-red-600 hover:bg-red-700"
-                                : "bg-yellow-500 hover:bg-yellow-600"
-                            }`}
-                          >
-                            {orderItem?.paymentStatus}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {deadlineStatus ? (
-                            <div className="flex items-center gap-2">
-                              <Clock className={`h-4 w-4 ${
-                                deadlineStatus.isExpired
-                                  ? "text-red-600"
-                                  : deadlineStatus.isUrgent
-                                  ? "text-orange-600"
-                                  : deadlineStatus.isWarning
-                                  ? "text-yellow-600"
-                                  : "text-muted-foreground"
-                              }`} />
-                              <span className={`text-sm ${
-                                deadlineStatus.isExpired
-                                  ? "text-red-600 font-semibold"
-                                  : deadlineStatus.isUrgent
-                                  ? "text-orange-600 font-semibold"
-                                  : deadlineStatus.isWarning
-                                  ? "text-yellow-600 font-semibold"
-                                  : "text-muted-foreground"
-                              }`}>
-                                {deadlineStatus.isExpired
-                                  ? "Expired"
-                                  : deadlineStatus.isUrgent
-                                  ? `${deadlineStatus.hoursRemaining}h left`
-                                  : deadlineStatus.deadline.toLocaleDateString()}
-                              </span>
-                              {(deadlineStatus.isExpired || deadlineStatus.isUrgent || deadlineStatus.isWarning) && (
-                                <AlertTriangle className={`h-4 w-4 ${
-                                  deadlineStatus.isExpired
-                                    ? "text-red-600"
-                                    : deadlineStatus.isUrgent
-                                    ? "text-orange-600"
-                                    : "text-yellow-600"
-                                }`} />
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>₱{orderItem?.totalAmount}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleFetchOrderDetails(orderItem?._id)
-                              }
-                            >
-                              View Details
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewPayment(orderItem?._id)}
-                            >
-                              <Receipt className="h-4 w-4 mr-1" />
-                              Receipt
-                            </Button>
-                            {canCancelOrder(orderItem?.orderStatus) && (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleCancelOrder(orderItem?._id)}
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Cancel Order
-                              </Button>
-                            )}
-                          </div>
-                          <Dialog
-                            open={openDetailsDialog}
-                            onOpenChange={() => {
-                              setOpenDetailsDialog(false);
-                              dispatch(resetOrderDetails());
-                            }}
-                          >
-                            <ShoppingOrderDetailsView orderDetails={orderDetails} />
-                          </Dialog>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFetchOrderDetails(orderItem?._id)}
+                    >
+                      View Details
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewPayment(orderItem?._id)}
+                    >
+                      <Receipt className="h-4 w-4 mr-1" />
+                      Receipt
+                    </Button>
+                    {canCancelOrder(orderItem?.orderStatus) && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancelOrder(orderItem?._id)}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel Order
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
+        <Dialog
+          open={openDetailsDialog}
+          onOpenChange={() => {
+            setOpenDetailsDialog(false);
+            dispatch(resetOrderDetails());
+          }}
+        >
+          <ShoppingOrderDetailsView orderDetails={orderDetails} />
+        </Dialog>
       </CardContent>
     </Card>
   );

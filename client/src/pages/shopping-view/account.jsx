@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import BackButton from "@/components/common/back-button";
 
 function ShoppingAccount() {
   const { user } = useSelector((state) => state.auth);
@@ -23,6 +24,9 @@ function ShoppingAccount() {
 
   return (
     <div className="flex flex-col">
+      <div className="container mx-auto px-4 md:px-6 pt-4 md:pt-6">
+        <BackButton fallbackPath="/shop/home" className="md:hidden" />
+      </div>
       <div className="container mx-auto grid grid-cols-1 gap-8 py-8">
         {/* Profile Picture Section */}
         <div className="flex flex-col items-center gap-4 py-6">
