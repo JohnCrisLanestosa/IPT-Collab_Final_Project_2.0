@@ -156,23 +156,25 @@ function ShoppingHome() {
           <h2 className="text-2xl font-bold text-center mb-4 text-[#041b3a] dark:text-blue-100">
             Shop by category
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {categoriesWithIcon.map((categoryItem) => (
-              <Card
-                onClick={() =>
-                  handleNavigateToListingPage(categoryItem, "category")
-                }
-                key={categoryItem.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-              >
-                <CardContent className="flex flex-col items-center justify-center p-3">
-                  <categoryItem.icon className="w-5 h-5 mb-1 text-primary" />
-                  <span className="text-xs font-semibold text-center">
-                    {categoryItem.label}
-                  </span>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="overflow-x-auto">
+            <div className="grid grid-flow-col auto-cols-[minmax(70px,1fr)] gap-2">
+              {categoriesWithIcon.map((categoryItem) => (
+                <Card
+                  onClick={() =>
+                    handleNavigateToListingPage(categoryItem, "category")
+                  }
+                  key={categoryItem.id}
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                >
+                  <CardContent className="flex flex-col items-center justify-center p-2">
+                    <categoryItem.icon className="w-3 h-3 mb-0.5 text-primary" />
+                    <span className="text-[11px] font-semibold text-center">
+                      {categoryItem.label}
+                    </span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
