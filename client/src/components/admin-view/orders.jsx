@@ -353,24 +353,24 @@ function AdminOrdersView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col sm:flex-row gap-2">
-                        <Dialog
-                          open={openDetailsDialog}
-                          onOpenChange={() => {
-                            setOpenDetailsDialog(false);
-                            dispatch(resetOrderDetails());
-                          }}
-                        >
-                          <Button
+                      <Dialog
+                        open={openDetailsDialog}
+                        onOpenChange={() => {
+                          setOpenDetailsDialog(false);
+                          dispatch(resetOrderDetails());
+                        }}
+                      >
+                        <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              handleFetchOrderDetails(orderItem?._id)
-                            }
-                          >
-                            View Details
-                          </Button>
-                          <AdminOrderDetailsView orderDetails={orderDetails} />
-                        </Dialog>
+                          onClick={() =>
+                            handleFetchOrderDetails(orderItem?._id)
+                          }
+                        >
+                          View Details
+                        </Button>
+                        <AdminOrderDetailsView orderDetails={orderDetails} />
+                      </Dialog>
                         {canArchiveOrder(orderItem) && (
                           <Button
                             variant="secondary"

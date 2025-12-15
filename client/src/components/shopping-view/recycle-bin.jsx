@@ -119,7 +119,7 @@ useEffect(() => {
         title: `Added ${order.cartItems.length} item(s) to cart!`,
         variant: "success",
       });
-      
+
       // Navigate to checkout page
       navigate("/shop/checkout");
     } catch (error) {

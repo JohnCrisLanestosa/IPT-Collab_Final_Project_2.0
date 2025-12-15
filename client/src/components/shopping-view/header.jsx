@@ -150,7 +150,7 @@ function DrawerMenuItems({ setOpen }) {
 
     if (location.pathname.includes("listing") && currentFilter !== null) {
       setSearchParams(
-        new URLSearchParams(`?category=${getCurrentMenuItem.id}`)
+          new URLSearchParams(`?category=${getCurrentMenuItem.id}`)
       );
     } else {
       navigate(getCurrentMenuItem.path);

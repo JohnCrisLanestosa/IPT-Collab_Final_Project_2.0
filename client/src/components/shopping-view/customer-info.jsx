@@ -19,50 +19,50 @@ function CustomerInfo({ customerInfo, setCustomerInfo, onFormDataChange }) {
 
   // Create form controls dynamically - name and email are always disabled
   const customerInfoFormControls = useMemo(() => [
-    {
-      label: "Full Name",
-      name: "name",
-      componentType: "input",
-      type: "text",
-      placeholder: "Enter your full name",
-      required: true,
+  {
+    label: "Full Name",
+    name: "name",
+    componentType: "input",
+    type: "text",
+    placeholder: "Enter your full name",
+    required: true,
       disabled: true, // Name is not editable
-    },
-    {
-      label: "Email",
-      name: "email",
-      componentType: "input",
-      type: "email",
-      placeholder: "Enter your email",
-      required: true,
+  },
+  {
+    label: "Email",
+    name: "email",
+    componentType: "input",
+    type: "email",
+    placeholder: "Enter your email",
+    required: true,
       disabled: true, // Email is not editable
-    },
-    {
-      label: "Phone Number",
-      name: "phone",
-      componentType: "input",
-      type: "tel",
-      placeholder: "Enter your phone number",
-      required: true,
-    },
-    {
-      label: "Gender",
-      name: "gender",
-      componentType: "select",
-      placeholder: "Select your gender",
-      options: [
-        { id: "male", label: "Male" },
-        { id: "female", label: "Female" },
-        { id: "prefer-not-to-say", label: "Prefer not to say" },
-      ],
-    },
-    {
-      label: "Date of Birth",
-      name: "dateOfBirth",
-      componentType: "input",
-      type: "date",
-      placeholder: "Select your date of birth",
-    },
+  },
+  {
+    label: "Phone Number",
+    name: "phone",
+    componentType: "input",
+    type: "tel",
+    placeholder: "Enter your phone number",
+    required: true,
+  },
+  {
+    label: "Gender",
+    name: "gender",
+    componentType: "select",
+    placeholder: "Select your gender",
+    options: [
+      { id: "male", label: "Male" },
+      { id: "female", label: "Female" },
+      { id: "prefer-not-to-say", label: "Prefer not to say" },
+    ],
+  },
+  {
+    label: "Date of Birth",
+    name: "dateOfBirth",
+    componentType: "input",
+    type: "date",
+    placeholder: "Select your date of birth",
+  },
   ], []);
 
   // Pre-fill with user info if available

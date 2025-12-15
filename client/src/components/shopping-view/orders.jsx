@@ -165,26 +165,19 @@ function ShoppingOrders() {
             </p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Order Status</TableHead>
-                <TableHead>Payment Status</TableHead>
-                <TableHead>Payment Deadline</TableHead>
-                <TableHead>Order Price</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <div className="space-y-4">
+            <div className="space-y-3 md:hidden">
               {activeOrders.map((orderItem) => {
                 const deadlineStatus = getPaymentDeadlineStatus(orderItem);
                 return (
-                  <TableRow key={orderItem?._id}>
-                    <TableCell>{orderItem?._id}</TableCell>
-                    <TableCell>{orderItem?.orderDate.split("T")[0]}</TableCell>
-                    <TableCell>
+                  <div key={orderItem?._id} className="rounded-lg border p-3 bg-card shadow-sm">
+                    <div className="text-xs text-muted-foreground break-all">
+                      Order ID: {orderItem?._id}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {orderItem?.orderDate.split("T")[0]}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <Badge
                         className={`py-1 px-3 ${
                           orderItem?.orderStatus === "pending"
@@ -208,8 +201,6 @@ function ShoppingOrders() {
                           ? orderItem.cancellationReason
                           : orderItem?.orderStatus?.charAt(0).toUpperCase() + orderItem?.orderStatus?.slice(1)}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
                       <Badge
                         className={`py-1 px-3 ${
                           orderItem?.paymentStatus === "paid"
@@ -221,94 +212,211 @@ function ShoppingOrders() {
                       >
                         {orderItem?.paymentStatus}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
+                    </div>
+                    <div className="mt-2 text-sm">
+                      <span className="font-semibold">Payment Deadline: </span>
                       {deadlineStatus ? (
-                        <div className="flex items-center gap-2">
-                          <Clock className={`h-4 w-4 ${
-                            deadlineStatus.isExpired
-                              ? "text-red-600"
-                              : deadlineStatus.isUrgent
-                              ? "text-orange-600"
-                              : deadlineStatus.isWarning
-                              ? "text-yellow-600"
-                              : "text-muted-foreground"
-                          }`} />
-                          <span className={`text-sm ${
-                            deadlineStatus.isExpired
-                              ? "text-red-600 font-semibold"
-                              : deadlineStatus.isUrgent
-                              ? "text-orange-600 font-semibold"
-                              : deadlineStatus.isWarning
-                              ? "text-yellow-600 font-semibold"
-                              : "text-muted-foreground"
-                          }`}>
-                            {deadlineStatus.isExpired
-                              ? "Expired"
-                              : deadlineStatus.isUrgent
-                              ? `${deadlineStatus.hoursRemaining}h left`
-                              : deadlineStatus.deadline.toLocaleDateString()}
-                          </span>
-                          {(deadlineStatus.isExpired || deadlineStatus.isUrgent || deadlineStatus.isWarning) && (
-                            <AlertTriangle className={`h-4 w-4 ${
-                              deadlineStatus.isExpired
-                                ? "text-red-600"
-                                : deadlineStatus.isUrgent
-                                ? "text-orange-600"
-                                : "text-yellow-600"
-                            }`} />
-                          )}
-                        </div>
+                        <span className={`inline-flex items-center gap-1 ${
+                          deadlineStatus.isExpired
+                            ? "text-red-600 font-semibold"
+                            : deadlineStatus.isUrgent
+                            ? "text-orange-600 font-semibold"
+                            : deadlineStatus.isWarning
+                            ? "text-yellow-600 font-semibold"
+                            : "text-muted-foreground"
+                        }`}>
+                          <Clock className="h-4 w-4" />
+                          {deadlineStatus.isExpired
+                            ? "Expired"
+                            : deadlineStatus.isUrgent
+                            ? `${deadlineStatus.hoursRemaining}h left`
+                            : deadlineStatus.deadline.toLocaleDateString()}
+                        </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </TableCell>
-                    <TableCell>₱{orderItem?.totalAmount}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleFetchOrderDetails(orderItem?._id)
-                          }
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewPayment(orderItem?._id)}
-                        >
-                          <Receipt className="h-4 w-4 mr-1" />
-                          Receipt
-                        </Button>
-                        {canCancelOrder(orderItem?.orderStatus) && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleCancelOrder(orderItem?._id)}
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Cancel Order
-                          </Button>
-                        )}
-                      </div>
-                      <Dialog
-                        open={openDetailsDialog}
-                        onOpenChange={() => {
-                          setOpenDetailsDialog(false);
-                          dispatch(resetOrderDetails());
-                        }}
+                    </div>
+                    <div className="mt-2 text-sm font-semibold">
+                      Total: ₱{orderItem?.totalAmount}
+                    </div>
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFetchOrderDetails(orderItem?._id)}
                       >
-                        <ShoppingOrderDetailsView orderDetails={orderDetails} />
-                      </Dialog>
-                    </TableCell>
-                  </TableRow>
+                        View Details
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewPayment(orderItem?._id)}
+                      >
+                        <Receipt className="h-4 w-4 mr-1" />
+                        Receipt
+                      </Button>
+                      {canCancelOrder(orderItem?.orderStatus) && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancelOrder(orderItem?._id)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel Order
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Order Date</TableHead>
+                    <TableHead>Order Status</TableHead>
+                    <TableHead>Payment Status</TableHead>
+                    <TableHead>Payment Deadline</TableHead>
+                    <TableHead>Order Price</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeOrders.map((orderItem) => {
+                    const deadlineStatus = getPaymentDeadlineStatus(orderItem);
+                    return (
+                      <TableRow key={orderItem?._id}>
+                        <TableCell>{orderItem?._id}</TableCell>
+                        <TableCell>{orderItem?.orderDate.split("T")[0]}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={`py-1 px-3 ${
+                              orderItem?.orderStatus === "pending"
+                                ? "bg-yellow-500 hover:bg-yellow-600"
+                                : orderItem?.orderStatus === "confirmed"
+                                ? "bg-blue-500 hover:bg-blue-600"
+                                : orderItem?.orderStatus === "readyForPickup"
+                                ? "bg-purple-500 hover:bg-purple-600"
+                                : orderItem?.orderStatus === "pickedUp"
+                                ? "bg-green-500 hover:bg-green-600"
+                                : orderItem?.orderStatus === "cancelled"
+                                ? "bg-red-600 hover:bg-red-700"
+                                : "bg-secondary hover:bg-accent text-foreground"
+                            }`}
+                          >
+                            {orderItem?.orderStatus === "readyForPickup"
+                              ? "Ready for Pickup"
+                              : orderItem?.orderStatus === "pickedUp"
+                              ? "Picked up"
+                              : orderItem?.orderStatus === "cancelled" && orderItem?.cancellationReason
+                              ? orderItem.cancellationReason
+                              : orderItem?.orderStatus?.charAt(0).toUpperCase() + orderItem?.orderStatus?.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={`py-1 px-3 ${
+                              orderItem?.paymentStatus === "paid"
+                                ? "bg-green-500 hover:bg-green-600"
+                                : orderItem?.paymentStatus === "failed"
+                                ? "bg-red-600 hover:bg-red-700"
+                                : "bg-yellow-500 hover:bg-yellow-600"
+                            }`}
+                          >
+                            {orderItem?.paymentStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {deadlineStatus ? (
+                            <div className="flex items-center gap-2">
+                              <Clock className={`h-4 w-4 ${
+                                deadlineStatus.isExpired
+                                  ? "text-red-600"
+                                  : deadlineStatus.isUrgent
+                                  ? "text-orange-600"
+                                  : deadlineStatus.isWarning
+                                  ? "text-yellow-600"
+                                  : "text-muted-foreground"
+                              }`} />
+                              <span className={`text-sm ${
+                                deadlineStatus.isExpired
+                                  ? "text-red-600 font-semibold"
+                                  : deadlineStatus.isUrgent
+                                  ? "text-orange-600 font-semibold"
+                                  : deadlineStatus.isWarning
+                                  ? "text-yellow-600 font-semibold"
+                                  : "text-muted-foreground"
+                              }`}>
+                                {deadlineStatus.isExpired
+                                  ? "Expired"
+                                  : deadlineStatus.isUrgent
+                                  ? `${deadlineStatus.hoursRemaining}h left`
+                                  : deadlineStatus.deadline.toLocaleDateString()}
+                              </span>
+                              {(deadlineStatus.isExpired || deadlineStatus.isUrgent || deadlineStatus.isWarning) && (
+                                <AlertTriangle className={`h-4 w-4 ${
+                                  deadlineStatus.isExpired
+                                    ? "text-red-600"
+                                    : deadlineStatus.isUrgent
+                                    ? "text-orange-600"
+                                    : "text-yellow-600"
+                                }`} />
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>₱{orderItem?.totalAmount}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleFetchOrderDetails(orderItem?._id)
+                              }
+                            >
+                              View Details
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPayment(orderItem?._id)}
+                            >
+                              <Receipt className="h-4 w-4 mr-1" />
+                              Receipt
+                            </Button>
+                            {canCancelOrder(orderItem?.orderStatus) && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleCancelOrder(orderItem?._id)}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Cancel Order
+                              </Button>
+                            )}
+                          </div>
+                          <Dialog
+                            open={openDetailsDialog}
+                            onOpenChange={() => {
+                              setOpenDetailsDialog(false);
+                              dispatch(resetOrderDetails());
+                            }}
+                          >
+                            <ShoppingOrderDetailsView orderDetails={orderDetails} />
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
