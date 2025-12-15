@@ -129,6 +129,12 @@ function DrawerMenuItems() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isActiveMenu = useActiveMenuChecker(location, searchParams);
 
+  // Filter out items that should not appear in mobile view
+  const itemsToHide = ["search", "pe-uniform", "souvenirs", "books", "clothing", "accessories"];
+  const mobileMenuItems = shoppingViewHeaderMenuItems.filter(
+    (item) => !itemsToHide.includes(item.id)
+  );
+
   function handleNavigate(getCurrentMenuItem) {
     sessionStorage.removeItem("filters");
     const currentFilter =
@@ -151,7 +157,7 @@ function DrawerMenuItems() {
 
   return (
     <nav className="flex flex-col mb-3 lg:mb-0 lg:items-center gap-6 lg:flex-row">
-      {shoppingViewHeaderMenuItems.map((menuItem) => {
+      {mobileMenuItems.map((menuItem) => {
         const isActive = isActiveMenu(menuItem);
 
         return (
@@ -161,7 +167,7 @@ function DrawerMenuItems() {
             aria-current={isActive ? "page" : undefined}
             className={`text-sm font-medium cursor-pointer transition-all duration-200 px-3 py-1 rounded-full ${
               isActive
-                ? "bg-primary text-primary-foreground dark:bg-accent dark:text-primary"
+                ? "bg-primary text-primary-foreground dark:bg-accent dark:text-accent-foreground"
                 : "text-foreground dark:text-blue-100 hover:text-primary dark:hover:text-accent"
             }`}
         >
