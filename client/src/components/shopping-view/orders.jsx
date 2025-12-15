@@ -18,15 +18,25 @@ import {
   resetOrderDetails,
   cancelOrder,
 } from "@/store/shop/order-slice";
+import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import { Badge } from "../ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Receipt, Trash2, X, Clock, AlertTriangle, ArrowLeft } from "lucide-react";
+import {
+  Receipt,
+  Trash2,
+  X,
+  Clock,
+  AlertTriangle,
+  ArrowLeft,
+  ShoppingCart,
+} from "lucide-react";
 import ShoppingRecycleBin from "./recycle-bin";
 import { useToast } from "../ui/use-toast";
 
 function ShoppingOrders() {
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -144,6 +154,45 @@ function ShoppingOrders() {
     };
   };
 
+  const handleBuyAgain = async (order) => {
+    if (!order?.cartItems || order.cartItems.length === 0) {
+      toast({
+        title: "No items to add to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingId(order._id);
+    try {
+      const promises = order.cartItems.map((item) =>
+        dispatch(
+          addToCart({
+            userId: user?.id,
+            productId: item.productId,
+            quantity: item.quantity,
+          })
+        )
+      );
+
+      await Promise.all(promises);
+      await dispatch(fetchCartItems(user?.id));
+
+      toast({
+        title: `Added ${order.cartItems.length} item(s) to cart`,
+        variant: "success",
+      });
+      navigate("/shop/checkout");
+    } catch (error) {
+      toast({
+        title: "Some items could not be added",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -231,11 +280,14 @@ function ShoppingOrders() {
                     </div>
 
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
-                      onClick={() => handleFetchOrderDetails(order._id)}
+                      className="flex items-center gap-2"
+                      onClick={() => handleBuyAgain(order)}
+                      disabled={processingId === order._id}
                     >
-                      View Details
+                      <ShoppingCart className="h-4 w-4" />
+                      Buy Again
                     </Button>
                   </div>
                 </div>
