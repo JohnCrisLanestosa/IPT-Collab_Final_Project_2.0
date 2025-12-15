@@ -154,6 +154,11 @@ function ShoppingOrders() {
     };
   };
 
+  const getTotalQuantity = (order) =>
+    Array.isArray(order?.cartItems)
+      ? order.cartItems.reduce((sum, item) => sum + (item?.quantity || 0), 0)
+      : 0;
+
   const handleBuyAgain = async (order) => {
     if (!order?.cartItems || order.cartItems.length === 0) {
       toast({
@@ -268,15 +273,47 @@ function ShoppingOrders() {
                           {order.cancellationReason}
                         </Badge>
                       )}
+                      <Badge variant="outline" className="text-xs">
+                        Qty: {getTotalQuantity(order)}
+                      </Badge>
                       <span className="text-lg font-bold text-primary">
                         ₱{order.totalAmount}
                       </span>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Products - match Purchase History layout */}
+                  <div className="space-y-3">
+                    {order.cartItems?.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col sm:flex-row gap-4 p-3 bg-muted/30 rounded-lg"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-20 h-20 object-contain rounded bg-background"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <h3 className="font-semibold">{item.title}</h3>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>Quantity: {item.quantity}</span>
+                            <span>Price: ₱{item.price}</span>
+                            <span className="font-semibold text-foreground">
+                              Total: ₱{item.price * item.quantity}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span>Cancelled on:</span>
-                      <span>{order.orderUpdateDate?.split("T")[0] || order.orderDate?.split("T")[0]}</span>
+                      <span>
+                        {order.orderUpdateDate?.split("T")[0] ||
+                          order.orderDate?.split("T")[0]}
+                      </span>
                     </div>
 
                     <Button
@@ -366,6 +403,9 @@ function ShoppingOrders() {
                           : orderItem?.orderStatus?.charAt(0).toUpperCase() +
                             orderItem?.orderStatus?.slice(1)}
                       </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        Qty: {getTotalQuantity(orderItem)}
+                      </Badge>
                       <span className="text-lg font-bold text-primary">
                         ₱{orderItem?.totalAmount}
                       </span>
@@ -400,7 +440,33 @@ function ShoppingOrders() {
                     </div>
                   </div>
 
-                  <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                  {/* Products - match Purchase History layout */}
+                  <div className="space-y-3 mt-2">
+                    {orderItem.cartItems?.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col sm:flex-row gap-4 p-3 bg-muted/30 rounded-lg"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-20 h-20 object-contain rounded bg-background"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <h3 className="font-semibold">{item.title}</h3>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>Quantity: {item.quantity}</span>
+                            <span>Price: ₱{item.price}</span>
+                            <span className="font-semibold text-foreground">
+                              Total: ₱{item.price * item.quantity}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-3 flex flex-col sm:flex-row gap-2">
                     <Button
                       variant="outline"
                       size="sm"

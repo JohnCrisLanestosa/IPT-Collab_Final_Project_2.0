@@ -2,6 +2,14 @@ import CustomerInfo from "@/components/shopping-view/customer-info";
 import { useDispatch, useSelector } from "react-redux";
 import UserCartItemsContent from "@/components/shopping-view/cart-items-content";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useState } from "react";
 import { createNewOrder } from "@/store/shop/order-slice";
 import { fetchCartItems } from "@/store/shop/cart-slice";
@@ -9,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import BackButton from "@/components/common/back-button";
+import { getAllOrdersByUserId } from "@/store/shop/order-slice";
 
 function ShoppingCheckout() {
   const { cartItems } = useSelector((state) => state.shopCart);
@@ -17,6 +26,7 @@ function ShoppingCheckout() {
   const [isPaymentStart, setIsPaymemntStart] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [buttonClicked, setButtonClicked] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,7 +42,7 @@ function ShoppingCheckout() {
         )
       : 0;
 
-  function handlePlaceOrder() {
+  function handlePlaceOrderClick() {
     if (cartItems.length === 0) {
       toast({
         title: "Your cart is empty. Please add items to proceed",
@@ -53,6 +63,22 @@ function ShoppingCheckout() {
     // Validate phone number format
     const phoneRegex = /^[0-9]{10,}$/;
     const cleanedPhone = customerInfo.phone.replace(/\D/g, ''); // Remove non-digits
+    if (!cleanedPhone || cleanedPhone.length < 10) {
+      toast({
+        title: "Please enter a valid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setShowConfirm(true);
+  }
+
+  async function submitOrder() {
+    if (isPaymentStart || isSuccess) return;
+
+    const cleanedPhone =
+      customerInfo?.phone ? customerInfo.phone.replace(/\D/g, "") : "";
     if (!cleanedPhone || cleanedPhone.length < 10) {
       toast({
         title: "Please enter a valid phone number",
@@ -86,31 +112,37 @@ function ShoppingCheckout() {
       orderUpdateDate: new Date(),
     };
 
-    setButtonClicked(true);
-    setIsPaymemntStart(true);
+    try {
+      setButtonClicked(true);
+      setIsPaymemntStart(true);
 
-    dispatch(createNewOrder(orderData)).then((data) => {
-      if (data?.payload?.success) {
-        setIsSuccess(true);
-        setIsPaymemntStart(false);
-        
-        // Show success animation briefly before navigating
-        setTimeout(() => {
-          // Clear cart by refetching (backend already cleared it)
-          dispatch(fetchCartItems()).then(() => {
-            navigate("/shop/payment-success", { state: { orderId: data?.payload?.orderId } });
-          });
-        }, 800);
-      } else {
-        setIsPaymemntStart(false);
-        setButtonClicked(false);
-        setIsSuccess(false);
-        toast({
-          title: "Failed to create order. Please try again.",
-          variant: "destructive",
-        });
+      const result = await dispatch(createNewOrder(orderData)).unwrap();
+
+      setIsSuccess(true);
+      setIsPaymemntStart(false);
+
+      // Refresh cart and orders, then navigate
+      try {
+        await dispatch(fetchCartItems()).unwrap();
+        await dispatch(getAllOrdersByUserId({})).unwrap();
+      } catch (err) {
+        console.warn("Refresh after order creation failed", err);
       }
-    });
+      navigate("/shop/payment-success", { state: { orderId: result?.orderId } });
+    } catch (error) {
+      setIsPaymemntStart(false);
+      setButtonClicked(false);
+      setIsSuccess(false);
+      toast({
+        title: "Failed to create order. Please try again.",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Please review your details and try again.",
+        variant: "destructive",
+      });
+      console.error("Order creation failed:", error);
+    }
   }
 
   return (
@@ -141,7 +173,7 @@ function ShoppingCheckout() {
           </div>
           <div className="mt-4 w-full">
             <Button 
-              onClick={handlePlaceOrder} 
+              onClick={handlePlaceOrderClick} 
               className={`w-full transition-all duration-300 ${
                 buttonClicked && !isSuccess
                   ? "animate-pulse scale-95"
@@ -168,6 +200,67 @@ function ShoppingCheckout() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Order</DialogTitle>
+            <DialogDescription>
+              Please review your order before placing it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Items</span>
+              <span className="font-semibold">{cartItems.length}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-semibold">₱{totalCartAmount}</span>
+            </div>
+            <div className="divide-y rounded-lg border bg-muted/40">
+              {cartItems.map((item, idx) => (
+                <div key={`${item.productId}-${idx}`} className="flex items-center gap-3 p-3">
+                  <div className="w-12 h-12 rounded-md bg-background border flex items-center justify-center overflow-hidden">
+                    {item.image ? (
+                      <img src={item.image} alt={item.title} className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-sm font-semibold text-muted-foreground">
+                        {item.title?.charAt(0)?.toUpperCase() || "P"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Qty: {item.quantity} · ₱{item.price}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold">₱{item.price * item.quantity}</span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+              Make sure your contact details and items are correct before placing your order.
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-3">
+            <Button variant="outline" onClick={() => setShowConfirm(false)}>
+              Review Again
+            </Button>
+            <Button
+              onClick={() => {
+                setShowConfirm(false);
+                submitOrder();
+              }}
+              className="flex-1 sm:flex-none"
+              disabled={isPaymentStart}
+            >
+              {isPaymentStart ? "Placing..." : "Confirm & Place Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
