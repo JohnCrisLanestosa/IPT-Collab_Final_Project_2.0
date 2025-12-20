@@ -360,133 +360,123 @@ function ShoppingPurchases() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {successfulPurchases.map((order) => (
-              <div
-                key={order._id}
-                className="border rounded-lg p-4 space-y-4 hover:shadow-md transition-shadow"
-              >
-                {/* Order Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Order ID:
-                      </span>
-                      <span className="text-sm font-semibold">
-                        {order._id.slice(-8).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {order.orderStatus === "pickedUp" ? "Picked up on:" : "Completed on:"}
-                      </span>
-                      <span className="text-sm">
-                        {new Date(order.orderUpdateDate || order.orderDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge 
-                      className={`${
-                        order.orderStatus === "pickedUp" 
-                          ? "bg-green-500 hover:bg-green-600"
-                          : order.orderStatus === "readyForPickup"
-                          ? "bg-purple-500 hover:bg-purple-600"
-                          : "bg-blue-500 hover:bg-blue-600"
-                      }`}
-                    >
-                      {order.orderStatus === "readyForPickup"
-                        ? "Ready for Pickup"
-                        : order.orderStatus === "pickedUp"
-                        ? "Picked Up"
-                        : order.orderStatus?.charAt(0).toUpperCase() + order.orderStatus?.slice(1)}
-                    </Badge>
-                    <Badge className="bg-green-500 hover:bg-green-600">
-                      Paid
-                    </Badge>
-                    {order.isArchived && (
-                      <Badge variant="outline" className="border-orange-500 text-orange-500">
-                        Archived
-                      </Badge>
-                    )}
-                    <span className="text-lg font-bold text-primary">
-                      ₱{order.totalAmount}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Products */}
-                <div className="space-y-3">
-                  {order.cartItems?.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex flex-col sm:flex-row gap-4 p-3 bg-muted/30 rounded-lg"
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="w-20 h-20 object-contain rounded bg-background"
-                      />
-                      <div className="flex-1 space-y-2">
-                        <h3 className="font-semibold">{item.title}</h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Quantity: {item.quantity}</span>
-                          <span>Price: ₱{item.price}</span>
-                          <span className="font-semibold text-foreground">
-                            Total: ₱{item.price * item.quantity}
-                          </span>
-                        </div>
+            {successfulPurchases.map((order) => {
+              const pickedUpDate = order.orderStatus === "pickedUp" && order.orderUpdateDate
+                ? new Date(order.orderUpdateDate).toLocaleDateString()
+                : new Date(order.orderUpdateDate || order.orderDate).toLocaleDateString();
+              
+              return (
+                <div
+                  key={order._id}
+                  className="border rounded-lg p-4 space-y-4 hover:shadow-md transition-shadow bg-white"
+                >
+                  {/* Order Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground">Order ID:</span>
+                        <span className="font-semibold">{order._id.slice(-8).toUpperCase()}</span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRateProduct(item, order._id)}
-                        className="flex items-center gap-2"
-                      >
-                        <Star className="w-4 h-4" />
-                        Rate
-                      </Button>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground">
+                          {order.orderStatus === "pickedUp" ? "Picked up on:" : "Completed on:"}
+                        </span>
+                        <span>{pickedUpDate}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {order.orderStatus === "pickedUp" && (
+                        <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                          Picked Up
+                        </Badge>
+                      )}
+                      <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                        Paid
+                      </Badge>
+                      {order.isArchived && (
+                        <Badge variant="outline" className="border-orange-500 text-orange-500">
+                          Archived
+                        </Badge>
+                      )}
+                      <span className="text-lg font-bold text-primary ml-auto">
+                        ₱{order.totalAmount}
+                      </span>
+                    </div>
+                  </div>
 
-                {/* Buy Again and Archive Actions */}
-                <div className="pt-3 border-t flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleBuyAgain(order)}
-                    className="w-full sm:w-auto flex items-center gap-2"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    Buy Again
-                  </Button>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    {!order.isArchived && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleArchivePurchase(order._id)}
-                        className="flex items-center gap-2"
+                  {/* Products */}
+                  <div className="space-y-3">
+                    {order.cartItems?.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-4 py-3 border-b last:border-b-0"
                       >
-                        <Archive className="w-4 h-4" />
-                        Archive
-                      </Button>
-                    )}
-                    {order.isArchived && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUnarchivePurchase(order._id)}
-                        className="flex items-center gap-2"
-                      >
-                        <ArchiveRestore className="w-4 h-4" />
-                        Unarchive
-                      </Button>
-                    )}
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-16 h-16 object-contain rounded bg-muted/30 flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm sm:text-base mb-2">{item.title}</h3>
+                          <div className="flex flex-wrap items-center gap-4 text-sm">
+                            <span className="text-muted-foreground"><span className="font-medium">Quantity:</span> {item.quantity}</span>
+                            <span className="text-muted-foreground"><span className="font-medium">Price:</span> ₱{item.price}</span>
+                            <span className="font-semibold text-foreground">
+                              <span className="font-medium">Total:</span> ₱{item.price * item.quantity}
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRateProduct(item, order._id)}
+                          className="flex items-center gap-2 bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700 flex-shrink-0"
+                        >
+                          <Star className="w-4 h-4" />
+                          Rate
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Buy Again and Archive Actions */}
+                  <div className="pt-3 border-t flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleBuyAgain(order)}
+                      className="w-full sm:w-auto flex items-center gap-2"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      Buy Again
+                    </Button>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      {!order.isArchived && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleArchivePurchase(order._id)}
+                          className="flex items-center gap-2"
+                        >
+                          <Archive className="w-4 h-4" />
+                          Archive
+                        </Button>
+                      )}
+                      {order.isArchived && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnarchivePurchase(order._id)}
+                          className="flex items-center gap-2"
+                        >
+                          <ArchiveRestore className="w-4 h-4" />
+                          Unarchive
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

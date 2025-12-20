@@ -342,80 +342,80 @@ function ShoppingOrders() {
           <div className="space-y-6">
             {activeOrders.map((orderItem) => {
               const deadlineStatus = getPaymentDeadlineStatus(orderItem);
+              const orderDate = orderItem?.orderDate ? new Date(orderItem.orderDate).toLocaleDateString() : "";
+              const pickedUpDate = orderItem?.orderStatus === "pickedUp" && orderItem?.orderUpdateDate 
+                ? new Date(orderItem.orderUpdateDate).toLocaleDateString() 
+                : null;
+              
               return (
                 <div
                   key={orderItem?._id}
-                  className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
+                  className="border rounded-lg p-4 space-y-4 hover:shadow-md transition-shadow bg-white"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden flex items-center justify-center">
-                        {getPrimaryItem(orderItem).image ? (
-                          <img
-                            src={getPrimaryItem(orderItem).image}
-                            alt={getPrimaryItem(orderItem).title}
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <span className="text-sm font-semibold text-muted-foreground">
-                            {getPrimaryItem(orderItem).title?.charAt(0)?.toUpperCase() || "P"}
-                          </span>
-                        )}
+                  {/* Header Section */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground">Order ID:</span>
+                        <span className="font-semibold">{orderItem?._id?.slice(-8)?.toUpperCase()}</span>
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="font-medium">Order ID:</span>
-                          <span className="font-semibold break-all">
-                            {orderItem?._id?.slice(-8)?.toUpperCase()}
-                          </span>
+                      {pickedUpDate ? (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-muted-foreground">Picked up on:</span>
+                          <span>{pickedUpDate}</span>
                         </div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {getPrimaryItem(orderItem).title}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>Placed on:</span>
-                          <span>{orderItem?.orderDate.split("T")[0]}</span>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-muted-foreground">Placed on:</span>
+                          <span>{orderDate}</span>
                         </div>
-                      </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge
-                        className={`py-1 px-3 ${
-                          orderItem?.orderStatus === "pending"
-                            ? "bg-yellow-500 hover:bg-yellow-600"
-                            : orderItem?.orderStatus === "confirmed"
-                            ? "bg-blue-500 hover:bg-blue-600"
-                            : orderItem?.orderStatus === "readyForPickup"
-                            ? "bg-purple-500 hover:bg-purple-600"
-                            : orderItem?.orderStatus === "pickedUp"
-                            ? "bg-green-500 hover:bg-green-600"
-                            : orderItem?.orderStatus === "cancelled"
-                            ? "bg-red-600 hover:bg-red-700"
-                            : "bg-secondary hover:bg-accent text-foreground"
-                        }`}
-                      >
-                        {orderItem?.orderStatus === "readyForPickup"
-                          ? "Ready for Pickup"
-                          : orderItem?.orderStatus === "pickedUp"
-                          ? "Picked up"
-                          : orderItem?.orderStatus === "cancelled" && orderItem?.cancellationReason
-                          ? orderItem.cancellationReason
-                          : orderItem?.orderStatus?.charAt(0).toUpperCase() +
-                            orderItem?.orderStatus?.slice(1)}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        Qty: {getTotalQuantity(orderItem)}
-                      </Badge>
-                      <span className="text-lg font-bold text-primary">
+                      {orderItem?.orderStatus === "pickedUp" && (
+                        <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                          Picked Up
+                        </Badge>
+                      )}
+                      {orderItem?.paymentStatus === "paid" && (
+                        <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                          Paid
+                        </Badge>
+                      )}
+                      {orderItem?.isArchived && (
+                        <Badge variant="outline" className="border-orange-500 text-orange-500">
+                          Archived
+                        </Badge>
+                      )}
+                      {orderItem?.orderStatus !== "pickedUp" && (
+                        <Badge
+                          className={`py-1 px-3 ${
+                            orderItem?.orderStatus === "pending"
+                              ? "bg-yellow-500 hover:bg-yellow-600"
+                              : orderItem?.orderStatus === "confirmed"
+                              ? "bg-blue-500 hover:bg-blue-600"
+                              : orderItem?.orderStatus === "readyForPickup"
+                              ? "bg-purple-500 hover:bg-purple-600"
+                              : "bg-secondary hover:bg-accent text-foreground"
+                          }`}
+                        >
+                          {orderItem?.orderStatus === "readyForPickup"
+                            ? "Ready for Pickup"
+                            : orderItem?.orderStatus?.charAt(0).toUpperCase() +
+                              orderItem?.orderStatus?.slice(1)}
+                        </Badge>
+                      )}
+                      <span className="text-lg font-bold text-primary ml-auto">
                         ₱{orderItem?.totalAmount}
                       </span>
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">Payment Deadline:</span>
-                      {deadlineStatus ? (
+                  {/* Payment Deadline (if applicable) */}
+                  {deadlineStatus && (
+                    <div className="space-y-2 text-sm pb-2 border-b">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">Payment Deadline:</span>
                         <span
                           className={`inline-flex items-center gap-1 ${
                             deadlineStatus.isExpired
@@ -434,31 +434,29 @@ function ShoppingOrders() {
                             ? `${deadlineStatus.hoursRemaining}h left`
                             : deadlineStatus.deadline.toLocaleDateString()}
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Products - match Purchase History layout */}
-                  <div className="space-y-3 mt-2">
+                  {/* Products */}
+                  <div className="space-y-3">
                     {orderItem.cartItems?.map((item, index) => (
                       <div
                         key={index}
-                        className="flex flex-col sm:flex-row gap-4 p-3 bg-muted/30 rounded-lg"
+                        className="flex items-center gap-4 py-3 border-b last:border-b-0"
                       >
                         <img
                           src={item.image}
                           alt={item.title}
-                          className="w-20 h-20 object-contain rounded bg-background"
+                          className="w-16 h-16 object-contain rounded bg-muted/30 flex-shrink-0"
                         />
-                        <div className="flex-1 space-y-2">
-                          <h3 className="font-semibold">{item.title}</h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>Quantity: {item.quantity}</span>
-                            <span>Price: ₱{item.price}</span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm sm:text-base mb-2">{item.title}</h3>
+                          <div className="flex flex-wrap items-center gap-4 text-sm">
+                            <span className="text-muted-foreground"><span className="font-medium">Quantity:</span> {item.quantity}</span>
+                            <span className="text-muted-foreground"><span className="font-medium">Price:</span> ₱{item.price}</span>
                             <span className="font-semibold text-foreground">
-                              Total: ₱{item.price * item.quantity}
+                              <span className="font-medium">Total:</span> ₱{item.price * item.quantity}
                             </span>
                           </div>
                         </div>
@@ -466,7 +464,8 @@ function ShoppingOrders() {
                     ))}
                   </div>
 
-                  <div className="pt-3 flex flex-col sm:flex-row gap-2">
+                  {/* Action Buttons */}
+                  <div className="pt-3 flex flex-col sm:flex-row gap-2 border-t">
                     <Button
                       variant="outline"
                       size="sm"
