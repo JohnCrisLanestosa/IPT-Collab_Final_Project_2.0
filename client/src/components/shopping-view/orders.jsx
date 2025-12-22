@@ -277,7 +277,7 @@ function ShoppingOrders() {
                         Qty: {getTotalQuantity(order)}
                       </Badge>
                       <span className="text-lg font-bold text-primary">
-                        ₱{order.totalAmount}
+                        ₱{order.totalAmount?.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -297,9 +297,9 @@ function ShoppingOrders() {
                           <h3 className="font-semibold">{item.title}</h3>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span>Quantity: {item.quantity}</span>
-                            <span>Price: ₱{item.price}</span>
+                            <span>Price: ₱{item.price?.toFixed(2)}</span>
                             <span className="font-semibold text-foreground">
-                              Total: ₱{item.price * item.quantity}
+                              Total: ₱{(item.price * item.quantity).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -406,7 +406,7 @@ function ShoppingOrders() {
                         </Badge>
                       )}
                       <span className="text-lg font-bold text-primary ml-auto">
-                        ₱{orderItem?.totalAmount}
+                        ₱{orderItem?.totalAmount?.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -454,9 +454,9 @@ function ShoppingOrders() {
                           <h3 className="font-semibold text-sm sm:text-base mb-2">{item.title}</h3>
                           <div className="flex flex-wrap items-center gap-4 text-sm">
                             <span className="text-muted-foreground"><span className="font-medium">Quantity:</span> {item.quantity}</span>
-                            <span className="text-muted-foreground"><span className="font-medium">Price:</span> ₱{item.price}</span>
+                            <span className="text-muted-foreground"><span className="font-medium">Price:</span> ₱{item.price?.toFixed(2)}</span>
                             <span className="font-semibold text-foreground">
-                              <span className="font-medium">Total:</span> ₱{item.price * item.quantity}
+                              <span className="font-medium">Total:</span> ₱{(item.price * item.quantity).toFixed(2)}
                             </span>
                           </div>
                         </div>

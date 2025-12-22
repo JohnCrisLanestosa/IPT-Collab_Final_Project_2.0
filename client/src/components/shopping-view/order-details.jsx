@@ -432,7 +432,7 @@ function ShoppingOrderDetailsView({ orderDetails }) {
                         <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
                         <div className="flex items-center gap-4 mt-2 text-sm">
                           <span className="text-muted-foreground">Qty: <span className="font-medium text-foreground">{item.quantity}</span></span>
-                          <span className="text-muted-foreground">Price: <span className="font-semibold text-primary">₱{item.price}</span></span>
+                          <span className="text-muted-foreground">Price: <span className="font-semibold text-primary">₱{item.price?.toFixed(2)}</span></span>
                         </div>
                         <div className="mt-1 text-sm font-semibold text-foreground">
                           Subtotal: <span className="text-primary">₱{(item.price * item.quantity).toFixed(2)}</span>

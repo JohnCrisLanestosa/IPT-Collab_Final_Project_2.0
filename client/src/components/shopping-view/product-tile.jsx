@@ -55,7 +55,7 @@ function ShoppingProductTile({
                 isOutOfStock ? "text-gray-600" : "text-primary"
               }`}
             >
-              ₱{product?.price}
+              ₱{product?.price?.toFixed(2)}
             </span>
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
               product?.totalStock === 0 

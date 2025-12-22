@@ -168,7 +168,7 @@ function ShoppingCheckout() {
           <div className="mt-8 space-y-4">
             <div className="flex justify-between">
               <span className="font-bold">Total</span>
-              <span className="font-bold">₱{totalCartAmount}</span>
+              <span className="font-bold">₱{totalCartAmount.toFixed(2)}</span>
             </div>
           </div>
           <div className="mt-4 w-full">
@@ -216,7 +216,7 @@ function ShoppingCheckout() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Total</span>
-              <span className="font-semibold">₱{totalCartAmount}</span>
+              <span className="font-semibold">₱{totalCartAmount.toFixed(2)}</span>
             </div>
             <div className="divide-y rounded-lg border bg-muted/40">
               {cartItems.map((item, idx) => (
@@ -233,10 +233,10 @@ function ShoppingCheckout() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{item.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      Qty: {item.quantity} · ₱{item.price}
+                      Qty: {item.quantity} · ₱{item.price.toFixed(2)}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold">₱{item.price * item.quantity}</span>
+                  <span className="text-sm font-semibold">₱{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
