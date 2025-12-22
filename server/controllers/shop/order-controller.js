@@ -239,6 +239,7 @@ const getOrderDeadlinesByUser = async (req, res) => {
         deadline: o.paymentDeadline,
         status: o.orderStatus,
         totalAmount: o.totalAmount,
+        cartItems: o.cartItems || [], // Include all cart items
       }))
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 

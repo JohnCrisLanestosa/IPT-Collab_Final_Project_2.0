@@ -176,28 +176,44 @@ function CalendarGrid({ deadlines, currentMonth, onDateClick, selectedDate }) {
               style={status ? { backgroundColor: status.color } : {}}
             >
               <div className={`text-xs lg:text-sm font-bold mb-0.5 ${dateDeadlines.length > 0 ? "text-white" : status ? "text-white" : "text-gray-900 dark:text-gray-100"}`}>{day}</div>
-              {dateDeadlines.length > 0 && (
-                <div className="flex flex-col gap-0.5 w-full text-[8px] lg:text-[9px] leading-tight overflow-hidden">
-                  {dateDeadlines.slice(0, 2).map((deadline, idx) => (
-                    <div 
-                      key={idx} 
-                      className={`truncate px-0.5 lg:px-1 py-0.5 rounded font-semibold ${
-                        status 
-                          ? "bg-white/30 text-white shadow-sm" 
-                          : "bg-white/20 text-white dark:bg-white/25 shadow-sm"
-                      }`}
-                      title={deadline.title}
-                    >
-                      {deadline.title}
-                    </div>
-                  ))}
-                  {dateDeadlines.length > 2 && (
-                    <div className={`text-[7px] lg:text-[8px] px-0.5 lg:px-1 font-semibold text-white`}>
-                      +{dateDeadlines.length - 2} more
-                    </div>
-                  )}
-                </div>
-              )}
+              {dateDeadlines.length > 0 && (() => {
+                // Collect all products from all orders on this date
+                const allProducts = [];
+                dateDeadlines.forEach(deadline => {
+                  if (deadline.cartItems && deadline.cartItems.length > 0) {
+                    deadline.cartItems.forEach(item => {
+                      allProducts.push({
+                        name: item.title,
+                        quantity: item.quantity || 1
+                      });
+                    });
+                  } else {
+                    // Fallback to order title if no cartItems
+                    allProducts.push({
+                      name: deadline.title,
+                      quantity: 1
+                    });
+                  }
+                });
+                
+                return (
+                  <div className="flex flex-col gap-0.5 w-full text-[8px] lg:text-[9px] leading-tight overflow-hidden max-h-[60px] lg:max-h-[80px] overflow-y-auto">
+                    {allProducts.map((product, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`truncate px-0.5 lg:px-1 py-0.5 rounded font-semibold ${
+                          status 
+                            ? "bg-white/30 text-white shadow-sm" 
+                            : "bg-white/20 text-white dark:bg-white/25 shadow-sm"
+                        }`}
+                        title={product.quantity > 1 ? `${product.name} (x${product.quantity})` : product.name}
+                      >
+                        {product.quantity > 1 ? `${product.name} (x${product.quantity})` : product.name}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </button>
           );
         })}
@@ -333,7 +349,7 @@ export default function DeadlinesCalendar() {
   };
 
   const handleDateClick = (date) => {
-    // Check if this date has more than 2 deadlines
+    // Check if this date has any deadlines
     const dateDeadlines = activeDeadlines.filter(d => {
       const deadlineDate = new Date(d.deadline);
       return deadlineDate.getFullYear() === date.getFullYear() &&
@@ -344,8 +360,8 @@ export default function DeadlinesCalendar() {
     // Always select the date to show details
     setSelectedDate(date);
     
-    // If there are more than 2 deadlines, scroll to the details section
-    if (dateDeadlines.length > 2) {
+    // If there are deadlines, scroll to the details section
+    if (dateDeadlines.length > 0) {
       // Use setTimeout to ensure the DOM has updated with the selected date details
       setTimeout(() => {
         if (selectedDateRef.current && scrollContainerRef.current) {
@@ -359,7 +375,7 @@ export default function DeadlinesCalendar() {
             behavior: 'smooth'
           });
         }
-      }, 150);
+      }, 200); // Slightly longer delay to ensure DOM is fully updated
     }
   };
 
@@ -472,6 +488,7 @@ export default function DeadlinesCalendar() {
                     <div className="space-y-1.5 lg:space-y-2">
                       {selectedDateDeadlines.map((d) => {
                         const { status, color } = getDeadlineStatus(d.deadline);
+                        const cartItems = d.cartItems || [];
                         return (
                           <div
                             key={d.orderId}
@@ -484,14 +501,23 @@ export default function DeadlinesCalendar() {
                             <div className="flex items-start justify-between gap-1.5 lg:gap-2">
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs lg:text-sm font-medium truncate">
-                                  {d.title}
-                                </p>
-                                <p className="text-[10px] lg:text-xs text-muted-foreground">
                                   Order ID: {d.orderId.substring(0, 8)}
                                 </p>
-                                <p className="text-[10px] lg:text-xs text-muted-foreground">
-                                  Amount: ₱{d.totalAmount}
+                                <p className="text-[10px] lg:text-xs text-muted-foreground mb-1">
+                                  Amount: ₱{d.totalAmount?.toFixed(2)}
                                 </p>
+                                {cartItems.length > 0 && (
+                                  <div className="mt-1.5 space-y-0.5">
+                                    <p className="text-[10px] lg:text-xs font-semibold text-muted-foreground mb-0.5">
+                                      Products ({cartItems.length}):
+                                    </p>
+                                    {cartItems.map((item, idx) => (
+                                      <div key={idx} className="text-[10px] lg:text-xs text-muted-foreground pl-1.5 border-l-2 border-primary/30">
+                                        • {item.title} {item.quantity > 1 && `(x${item.quantity})`}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex flex-col items-end gap-0.5 lg:gap-1 flex-shrink-0">
                                 <Badge variant={color} className="text-[10px] lg:text-xs">
@@ -522,6 +548,7 @@ export default function DeadlinesCalendar() {
                           <p className="text-xs font-medium text-muted-foreground mb-2">{dateKey}</p>
                           {deadlines.map((d) => {
                             const { status, color } = getDeadlineStatus(d.deadline);
+                            const cartItems = d.cartItems || [];
                             return (
                               <div
                                 key={d.orderId}
@@ -534,14 +561,26 @@ export default function DeadlinesCalendar() {
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">
-                                      {d.title}
+                                      Order ID: {d.orderId.substring(0, 8)}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      ₱{d.totalAmount} • {new Date(d.deadline).toLocaleTimeString('en-US', {
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      ₱{d.totalAmount?.toFixed(2)} • {new Date(d.deadline).toLocaleTimeString('en-US', {
                                         hour: '2-digit',
                                         minute: '2-digit'
                                       })}
                                     </p>
+                                    {cartItems.length > 0 && (
+                                      <div className="mt-1 space-y-0.5">
+                                        <p className="text-xs font-semibold text-muted-foreground mb-0.5">
+                                          Products ({cartItems.length}):
+                                        </p>
+                                        {cartItems.map((item, idx) => (
+                                          <div key={idx} className="text-xs text-muted-foreground pl-1.5 border-l-2 border-primary/30">
+                                            • {item.title} {item.quantity > 1 && `(x${item.quantity})`}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                   <Badge variant={color} className="text-xs">
                                     {timeUntil(d.deadline)}
