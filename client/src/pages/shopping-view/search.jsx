@@ -2,6 +2,7 @@ import ProductDetailsDialog from "@/components/shopping-view/product-details";
 import ShoppingProductTile from "@/components/shopping-view/product-tile";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { showSuccess } from "@/components/ui/use-success-indicator";
 import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import { fetchProductDetails } from "@/store/shop/products-slice";
 import {
@@ -87,10 +88,7 @@ function SearchProducts() {
           if (shouldNavigate) {
             navigate("/shop/checkout");
           } else {
-            toast({
-              title: "Product is added to cart",
-              variant: "success",
-            });
+            showSuccess("Product is added to cart");
           }
         });
       }

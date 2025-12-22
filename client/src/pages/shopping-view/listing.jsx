@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
+import { showSuccess } from "@/components/ui/use-success-indicator";
 import { sortOptions } from "@/config";
 import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import {
@@ -129,10 +130,7 @@ function ShoppingListing() {
           if (shouldNavigate) {
             navigate("/shop/checkout");
           } else {
-            toast({
-              title: "Product is added to cart",
-              variant: "success",
-            });
+            showSuccess("Product is added to cart");
           }
         });
       }

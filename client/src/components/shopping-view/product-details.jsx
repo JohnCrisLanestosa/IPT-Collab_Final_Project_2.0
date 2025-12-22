@@ -5,6 +5,7 @@ import { Separator } from "../ui/separator";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import { useToast } from "../ui/use-toast";
+import { showSuccess } from "../ui/use-success-indicator";
 import { setProductDetails } from "@/store/shop/products-slice";
 import StarRatingComponent from "../common/star-rating";
 import { useEffect } from "react";
@@ -52,10 +53,7 @@ function ProductDetailsDialog({ open, setOpen, productDetails }) {
             handleDialogClose();
             navigate("/shop/checkout");
           } else {
-            toast({
-              title: "Product is added to cart",
-              variant: "success",
-            });
+            showSuccess("Product is added to cart");
           }
         });
       }

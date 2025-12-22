@@ -17,6 +17,7 @@ import ShoppingProductTile from "@/components/shopping-view/product-tile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import { useToast } from "@/components/ui/use-toast";
+import { showSuccess } from "@/components/ui/use-success-indicator";
 import ProductDetailsDialog from "@/components/shopping-view/product-details";
 
 const categoriesWithIcon = [
@@ -100,10 +101,7 @@ function ShoppingHome() {
           if (shouldNavigate) {
             navigate("/shop/checkout");
           } else {
-            toast({
-              title: "Product is added to cart",
-              variant: "success",
-            });
+            showSuccess("Product is added to cart");
           }
         });
       }
