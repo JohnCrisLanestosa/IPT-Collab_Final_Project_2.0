@@ -78,9 +78,9 @@ const formatLabel = (groupBy, referenceDate) => {
 };
 
 const buildMatchStage = (startDate, endDate) => {
+  // Only count orders that have been picked up (completed sales)
   const matchStage = {
-    ...PAYMENT_MATCH,
-    orderStatus: { $ne: "cancelled" },
+    ...PAYMENT_MATCH, // This already includes orderStatus: "pickedUp" and isArchived: false
   };
 
   // Use orderUpdateDate (when order was picked up/payment completed) instead of orderDate
