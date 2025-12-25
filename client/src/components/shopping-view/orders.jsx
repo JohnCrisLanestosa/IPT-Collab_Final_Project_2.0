@@ -233,7 +233,7 @@ function ShoppingOrders() {
           cancelledOrders.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground space-y-2">
               <p>No cancelled orders yet.</p>
-              <p className="text-sm">Orders that you cancel will appear here.</p>
+              <p className="text-sm">Cancelled orders and orders cancelled due to failure to pay will appear here.</p>
             </div>
           ) : (
             <div className="space-y-6">

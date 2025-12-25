@@ -246,7 +246,7 @@ function ShoppingCheckout() {
           </div>
           <DialogFooter className="gap-2 sm:gap-3">
             <Button variant="outline" onClick={() => setShowConfirm(false)}>
-              Review Again
+              Back
             </Button>
             <Button
               onClick={() => {

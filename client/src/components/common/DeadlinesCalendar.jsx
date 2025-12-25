@@ -17,6 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import { io } from "socket.io-client";
 
 function timeUntil(dateStr) {
   if (!dateStr) return "";
@@ -283,6 +284,52 @@ export default function DeadlinesCalendar() {
     fetchDeadlines();
     return () => {
       abort = true;
+    };
+  }, [user?.id]);
+
+  // Set up Socket.IO listener for real-time order updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const socket = io("http://localhost:5000", {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      socket.emit("register-user", user.id);
+    });
+
+    // Listen for order updates - refresh calendar when order is confirmed
+    socket.on("order-updated", (payload) => {
+      // If order status changed to "confirmed", refresh deadlines to show new payment deadline
+      if (payload?.newStatus === "confirmed") {
+        // Refetch deadlines to include the newly confirmed order
+        async function refreshDeadlines() {
+          try {
+            const res = await fetch(`http://localhost:5000/api/shop/order/deadlines`, {
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (res.ok) {
+              const json = await res.json();
+              if (json?.success) {
+                setDeadlines(json.data || []);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to refresh deadlines:", e);
+          }
+        }
+        refreshDeadlines();
+      }
+    });
+
+    return () => {
+      socket.off("order-updated");
+      socket.disconnect();
     };
   }, [user?.id]);
 
