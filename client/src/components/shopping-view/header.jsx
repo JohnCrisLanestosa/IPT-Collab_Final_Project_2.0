@@ -466,8 +466,6 @@ function MobileHeaderActions() {
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1">
-        <NotificationDropdown />
-        <DeadlinesCalendar />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -484,6 +482,8 @@ function MobileHeaderActions() {
             <p>Search Products</p>
           </TooltipContent>
         </Tooltip>
+        <NotificationDropdown />
+        <DeadlinesCalendar />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -506,13 +506,20 @@ function MobileHeaderActions() {
   );
 }
 
-function MobileProfileSection() {
+function MobileProfileSection({ setOpenMobileMenu }) {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   function handleLogout() {
     dispatch(logoutUser());
+  }
+
+  function handleAccountClick() {
+    navigate("/shop/account");
+    if (setOpenMobileMenu) {
+      setOpenMobileMenu(false);
+    }
   }
 
   return (
@@ -534,7 +541,7 @@ function MobileProfileSection() {
         <DropdownMenuContent side="right" className="w-56">
           <DropdownMenuLabel>Logged in as {user?.userName}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate("/shop/account")}>
+          <DropdownMenuItem onClick={handleAccountClick}>
             <UserCog className="mr-2 h-4 w-4" />
             Account
           </DropdownMenuItem>
@@ -588,7 +595,7 @@ function ShoppingHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-full max-w-xs">
-              <MobileProfileSection />
+              <MobileProfileSection setOpenMobileMenu={setOpenMobileMenu} />
               <DrawerMenuItems setOpen={setOpenMobileMenu} />
               <MobileDrawerContent />
             </SheetContent>

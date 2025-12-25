@@ -199,19 +199,19 @@ function CalendarGrid({ deadlines, currentMonth, onDateClick, selectedDate }) {
                 return (
                   <div className="flex flex-col gap-0.5 w-full text-[8px] lg:text-[9px] leading-tight overflow-hidden max-h-[60px] lg:max-h-[80px] overflow-y-auto">
                     {allProducts.map((product, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`truncate px-0.5 lg:px-1 py-0.5 rounded font-semibold ${
-                          status 
-                            ? "bg-white/30 text-white shadow-sm" 
-                            : "bg-white/20 text-white dark:bg-white/25 shadow-sm"
-                        }`}
+                    <div 
+                      key={idx} 
+                      className={`truncate px-0.5 lg:px-1 py-0.5 rounded font-semibold ${
+                        status 
+                          ? "bg-white/30 text-white shadow-sm" 
+                          : "bg-white/20 text-white dark:bg-white/25 shadow-sm"
+                      }`}
                         title={product.quantity > 1 ? `${product.name} (x${product.quantity})` : product.name}
-                      >
+                    >
                         {product.quantity > 1 ? `${product.name} (x${product.quantity})` : product.name}
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                    </div>
                 );
               })()}
             </button>
