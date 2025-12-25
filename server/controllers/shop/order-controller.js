@@ -227,6 +227,9 @@ const getOrderDeadlinesByUser = async (req, res) => {
     // Only include non-archived orders
     query.isArchived = false;
 
+    // Exclude pickedUp orders - they no longer have payment deadlines
+    query.orderStatus = { $ne: "pickedUp" };
+
     const orders = await Order.find(query).select(
       "_id cartItems paymentDeadline orderStatus totalAmount"
     );

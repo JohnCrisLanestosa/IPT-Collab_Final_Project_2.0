@@ -299,11 +299,12 @@ export default function DeadlinesCalendar() {
       socket.emit("register-user", user.id);
     });
 
-    // Listen for order updates - refresh calendar when order is confirmed
+    // Listen for order updates - refresh calendar when order is confirmed or picked up
     socket.on("order-updated", (payload) => {
       // If order status changed to "confirmed", refresh deadlines to show new payment deadline
-      if (payload?.newStatus === "confirmed") {
-        // Refetch deadlines to include the newly confirmed order
+      // If order status changed to "pickedUp", refresh deadlines to remove the deadline
+      if (payload?.newStatus === "confirmed" || payload?.newStatus === "pickedUp") {
+        // Refetch deadlines to update the calendar
         async function refreshDeadlines() {
           try {
             const res = await fetch(`http://localhost:5000/api/shop/order/deadlines`, {
