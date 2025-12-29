@@ -19,7 +19,7 @@ import {
   archiveOrder,
 } from "@/store/admin/order-slice";
 import { Badge } from "../ui/badge";
-import { ArrowLeft, Trash2, Clock, AlertTriangle, Archive } from "lucide-react";
+import { ArrowLeft, Trash2, Clock, AlertTriangle, Archive, Sparkles } from "lucide-react";
 import { io } from "socket.io-client";
 import { useToast } from "../ui/use-toast";
 
@@ -29,6 +29,8 @@ function AdminOrdersView() {
   const [orderToArchive, setOrderToArchive] = useState(null);
   const [isArchiving, setIsArchiving] = useState(false);
   const [viewMode, setViewMode] = useState("all"); // "all", "cancelled", "archive"
+  const [seenOrders, setSeenOrders] = useState(new Set()); // Track orders admin has seen
+  const [newOrderIds, setNewOrderIds] = useState(new Set()); // Track order IDs that came in via socket (new orders)
   const { orderList, orderDetails } = useSelector((state) => state.adminOrder);
   const dispatch = useDispatch();
   const socketRef = useRef(null);
@@ -43,6 +45,28 @@ function AdminOrdersView() {
     const archivedParam = viewMode === "cancelled" ? "true" : viewMode === "archive" ? "archive" : "false";
     dispatch(getAllOrdersForAdmin(archivedParam));
   }, [dispatch, viewMode]);
+
+  // Mark all initially loaded orders as "seen" so they don't show as "new"
+  useEffect(() => {
+    if (orderList && orderList.length > 0) {
+      const orderIds = orderList
+        .filter(order => {
+          if (!order?._id) return false;
+          const orderIdStr = String(order._id);
+          // Only mark as seen if it's not a new order (not in newOrderIds)
+          return !newOrderIds.has(orderIdStr);
+        })
+        .map(order => String(order._id)); // Convert to string
+      
+      if (orderIds.length > 0) {
+        setSeenOrders(prev => {
+          const updated = new Set(prev);
+          orderIds.forEach(id => updated.add(id));
+          return updated;
+        });
+      }
+    }
+  }, [orderList, newOrderIds]);
 
   console.log(orderDetails, "orderList");
 
@@ -72,6 +96,13 @@ function AdminOrdersView() {
     // Listen for new order events
     socket.on("new-order", (orderData) => {
       console.log("[Admin Orders] New order received:", orderData);
+      
+      // Mark this order as "new" (don't mark it as seen yet)
+      // Convert to string to ensure consistent comparison
+      if (orderData?.orderId) {
+        const orderIdStr = String(orderData.orderId);
+        setNewOrderIds(prev => new Set(prev).add(orderIdStr));
+      }
       
       // Only refresh if we're viewing "all" orders (not cancelled or archive)
       if (viewMode === "all") {
@@ -136,9 +167,26 @@ function AdminOrdersView() {
     return order?.orderStatus === "pickedUp" && !order?.isArchived;
   };
 
+  // Check if an order is "new" (came in via socket and hasn't been viewed yet)
+  const isNewOrder = (order) => {
+    if (!order?._id) return false;
+    // Convert to string to ensure consistent comparison
+    const orderIdStr = String(order._id);
+    // Order is "new" if it came in via socket (is in newOrderIds) and hasn't been seen yet
+    return newOrderIds.has(orderIdStr) && !seenOrders.has(orderIdStr);
+  };
+
   const handleArchiveClick = (order) => {
     setOrderToArchive(order);
     setOpenArchiveDialog(true);
+  };
+
+  // Mark order as seen when admin views details
+  const handleViewDetails = (orderId) => {
+    // Convert to string to ensure consistent comparison
+    const orderIdStr = String(orderId);
+    setSeenOrders(prev => new Set(prev).add(orderIdStr));
+    handleFetchOrderDetails(orderId);
   };
 
   const handleArchiveConfirm = async () => {
@@ -245,9 +293,20 @@ function AdminOrdersView() {
             {orderList && orderList.length > 0
               ? orderList.map((orderItem) => {
                   const deadlineStatus = getPaymentDeadlineStatus(orderItem);
+                  const isNew = isNewOrder(orderItem);
                   return (
-                  <TableRow key={orderItem?._id}>
-                    <TableCell>{orderItem?._id}</TableCell>
+                  <TableRow key={orderItem?._id} className={isNew ? "bg-blue-50/50 dark:bg-blue-950/20 border-l-4 border-l-blue-500" : ""}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {orderItem?._id}
+                        {isNew && (
+                          <Badge className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            New
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{orderItem?.orderDate.split("T")[0]}</TableCell>
                     <TableCell>
                       <Badge
@@ -331,25 +390,33 @@ function AdminOrdersView() {
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                    <TableCell>₱{orderItem?.totalAmount}</TableCell>
+                    <TableCell>₱{orderItem?.totalAmount?.toFixed(2)}</TableCell>
                     <TableCell>
-                      {orderItem?.isArchived ? (
-                        <Badge className="bg-gray-500 hover:bg-gray-600">
-                          Archived
-                        </Badge>
-                      ) : orderItem?.orderStatus === "cancelled" ? (
-                        <Badge className="bg-red-600 hover:bg-red-700">
-                          Cancelled
-                        </Badge>
-                      ) : orderItem?.orderStatus === "pickedUp" ? (
-                        <Badge className="bg-emerald-500 hover:bg-emerald-600">
-                          Completed
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-green-500 hover:bg-green-600">
-                          Active
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {orderItem?.isArchived ? (
+                          <Badge className="bg-gray-500 hover:bg-gray-600">
+                            Archived
+                          </Badge>
+                        ) : orderItem?.orderStatus === "cancelled" ? (
+                          <Badge className="bg-red-600 hover:bg-red-700">
+                            Cancelled
+                          </Badge>
+                        ) : orderItem?.orderStatus === "pickedUp" ? (
+                          <Badge className="bg-emerald-500 hover:bg-emerald-600">
+                            Completed
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-green-500 hover:bg-green-600">
+                            Active
+                          </Badge>
+                        )}
+                        {isNew && (
+                          <Badge className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            New
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col sm:flex-row gap-2">
@@ -364,7 +431,7 @@ function AdminOrdersView() {
                             variant="outline"
                             size="sm"
                           onClick={() =>
-                            handleFetchOrderDetails(orderItem?._id)
+                            handleViewDetails(orderItem?._id)
                           }
                         >
                           View Details
