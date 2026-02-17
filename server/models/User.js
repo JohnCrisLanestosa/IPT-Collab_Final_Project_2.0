@@ -10,6 +10,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true, // Email must be unique
+    match: [/^[\w.-]+@(student\.buksu\.edu\.ph|buksu\.edu\.ph)$/, "Please use an email ending with @student.buksu.edu.ph or @buksu.edu.ph"],
   },
   password: {
     type: String,

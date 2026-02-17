@@ -11,6 +11,13 @@ const googleAuthSuccess = (req, res) => {
       return res.redirect(`${process.env.CLIENT_URL}/auth/login?error=authentication_failed`);
     }
 
+    const EMAIL_REGEX = /^[\w.-]+@(student\.buksu\.edu\.ph|buksu\.edu\.ph)$/;
+
+    if (!EMAIL_REGEX.test(user.email)) {
+      const errorMessage = encodeURIComponent("Please use an email ending with @student.buksu.edu.ph or @buksu.edu.ph");
+      return res.redirect(`${process.env.CLIENT_URL}/auth/login?error=${errorMessage}`);
+    }
+
     if (user.isArchived) {
       const archivedMessage = encodeURIComponent(
         "This account has been archived. Please contact a superadmin to regain access."
